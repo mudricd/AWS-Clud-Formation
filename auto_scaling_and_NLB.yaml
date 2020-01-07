@@ -1,0 +1,197 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AutoScaling CF
+
+# P A R A M E T E R S
+Parameters:
+  MyKeyName:
+    Description: Name of an existing EC2 KeyPair
+    Type: "AWS::EC2::KeyPair::KeyName"
+    Default: Dragan_AWS_key
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  VpcId:
+    Description: ID of the VPC onto which to launch the application
+    Type: AWS::EC2::VPC::Id
+    Default: "vpc-037080e34cae35ead"
+  VpcSubnets:
+    Description: The 3 subnets this Stack will be using.
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Default: "subnet-014214c87e997c42c,subnet-07965b4bcee131e6a,subnet-0776d1ae6314f5fca"
+  ImageId:
+    Description: EC2 image id
+    Type: String
+    Default: ami-0119aa4d67e59007c
+    AllowedValues:
+      - ami-0119aa4d67e59007c
+      - ami-05b0d50be1ff1f6ae
+      - ami-0975ce566eec139c3
+      - ami-0328aad0f6218c429
+  InstanceType:
+    Description: Type of EC2 instance
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.medium
+
+# R E S O U R C E S
+Resources:
+  SekjuritiGrupa:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Template securty group
+      GroupName: !Sub
+      - ${CFormationName}-NovaSG
+      - { CFormationName: !Ref 'AWS::StackName' }
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+        - IpProtocol: icmp
+          Description: ICMP
+          FromPort: 8
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: ImeGrupe
+
+# A U T O     S C A L I N G
+  LaunchConfigNEW:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref ImageId
+      SecurityGroups: 
+        - !Ref SekjuritiGrupa
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref MyKeyName
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sdi"
+          Ebs:
+            Encrypted: "true"
+            VolumeType: "gp2"
+            DeleteOnTermination: "false"
+            VolumeSize: "100"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash 
+          yum -y install httpd
+          systemctl start httpd && systemctl enable httpd
+
+  AutoscalingGroupNEW:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub
+        - ${CFStackName}-AutoscalingGroupNEW
+        - { CFStackName: !Ref 'AWS::StackName' }
+      AvailabilityZones:
+        Fn::GetAZs: ''
+      VPCZoneIdentifier: !Ref VpcSubnets
+      LaunchConfigurationName:  !Ref LaunchConfigNEW
+      MinSize: '1'
+      MaxSize: '2'
+      DesiredCapacity: '1'
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 30
+      Cooldown: 60
+      TargetGroupARNs:
+        - Ref: LogstashFUSETargetGroup
+  #      - Ref: LogstashGUZTargetGroup
+      TerminationPolicies:
+        - NewestInstance
+      Tags: 
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-TEST-instance
+            - { CFStackName: !Ref 'AWS::StackName' }
+          PropagateAtLaunch: 'true'
+        - Key: "Service"
+          Value: "Lotteries"
+          PropagateAtLaunch: 'true'
+
+  ASGScalingPolicyNEW:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoscalingGroupNEW
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 90
+      
+# L O A D   B A L A N C E R    C O N F
+      
+  LogstashNetworkLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub
+        - ${CFStackName}-Logstash-nlb
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Scheme: internal
+      Type: network
+      Subnets: !Ref VpcSubnets
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-logstash-nlb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+  
+  LogstashFUSETargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-fuze-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 80
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"          
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+
+  LogstashFUSEListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashFUSETargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 80
+      Protocol: TCP
+  
+
+  ######################################################
+ 
+
