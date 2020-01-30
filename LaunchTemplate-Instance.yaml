@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AutoScaling CF
+
+# P A R A M E T E R S
+
+Parameters:
+  MyKeyName:
+    Description: Name of an existing EC2 KeyPair
+    Type: "AWS::EC2::KeyPair::KeyName"
+    Default: Dragan_AWS_key
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  VpcId:
+    Description: ID of the VPC onto which to launch the application
+    Type: AWS::EC2::VPC::Id
+    Default: "vpc-037080e34cae35ead"
+  VpcSubnets:
+    Description: The 3 subnets this Stack will be using.
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Default: "subnet-014214c87e997c42c,subnet-07965b4bcee131e6a,subnet-0776d1ae6314f5fca"
+  ImageId:
+    Description: EC2 image id
+    Type: String
+    Default: ami-0119aa4d67e59007c
+    AllowedValues:
+      - ami-0119aa4d67e59007c
+      - ami-05b0d50be1ff1f6ae
+      - ami-0975ce566eec139c3
+      - ami-0328aad0f6218c429
+  InstanceType:
+    Description: Type of EC2 instance
+    Type: String
+    Default: t2.medium
+    AllowedValues:
+      - t2.micro
+      - t2.medium
+
+# R E S O U R C E S
+
+Resources:
+    SecGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Template securty group
+        GroupName: !Sub
+        - ${CFormationName}-NovaSG
+        - { CFormationName: !Ref 'AWS::StackName' }
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: 0.0.0.0/0
+            Description: SSH
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: 0.0.0.0/0
+            Description: SSH
+          - IpProtocol: tcp
+            FromPort: 9200
+            ToPort: 9200
+            CidrIp: 0.0.0.0/0
+            Description: elasticsearch
+          - IpProtocol: tcp
+            FromPort: 9300
+            ToPort: 9300
+            CidrIp: 0.0.0.0/0
+            Description: elasticsearch
+          - IpProtocol: tcp
+            FromPort: 5044
+            ToPort: 5044
+            CidrIp: 0.0.0.0/0
+            Description: logstash
+          - IpProtocol: icmp
+            Description: ICMP
+            FromPort: 8
+            ToPort: -1
+            CidrIp: 0.0.0.0/0
+        VpcId: !Ref VpcId
+        Tags:
+          - Key: Name
+            Value: DraganTestGroup
+          - Key:  OwnerDescription
+            Value: LAPS
+
+  
+    LaunchTemp:
+      Type: AWS::EC2::LaunchTemplate
+      Properties:
+        LaunchTemplateName: LaunchTemp
+        LaunchTemplateData:
+          ImageId: !Ref ImageId
+          InstanceType: !Ref InstanceType
+          KeyName: !Ref MyKeyName
+          TagSpecifications:
+            -
+              ResourceType: instance
+              Tags:
+                - Key:  OwnerDescription
+                  Value: LAPS
+          UserData:
+            Fn::Base64: !Sub |
+                #!/bin/bash
+                yum -y update && reboot
+                cat >> "/root/.ssh/authorized_keys" << EOF
+                ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCanU63ELNFJIjnhDoXNpG4g7gVgsgJrmRA++EfKEKb5mlR7OaXu90bNoroG1ZYbLXNRKvEiZlVx5jMJkWF9Lvk99YwRvAMf1F0A3ik4UmaYSALRLD/agF1e+Ljod/8y20sBezIfsgkDDuv1U3pmGC7khi6WdT5A0WP/kRvX22BAmHHUFNsyXq4maD1YjL5RWTZ+TCqJBcK8w7IPwu5Zj4NxX9dkykwQ1HfM2+E84lI63lsB/GR+bTj7dJm0P3wLAfT9ABXaXzUTiq2bp43V5ZDh/CPRbHF04x2pF9VtPyiyP6pyKfOl4Aeqxs3kIYRm/RgY/+6NPsoweTvE9rHeoUd root@ip-10-174-21-56.tattsgroup.io
+                EOF
+    
+    Server1:
+        Type: AWS::EC2::Instance
+        Properties:  
+          LaunchTemplate: 
+            LaunchTemplateId: !Ref LaunchTemp
+            Version:
+              Fn::GetAtt:
+                [ "LaunchTemp", "LatestVersionNumber" ]
+          InstanceType: t2.micro      
+          NetworkInterfaces:
+           -
+              Description: !Sub
+                - ${CFStackName}-Elastic02SB-eni
+                - { CFStackName: !Ref 'AWS::StackName' }
+              PrivateIpAddress: 10.174.21.11
+              GroupSet: 
+                - !GetAtt SecGroup.GroupId
+              DeviceIndex: 0
+              SubnetId: subnet-014214c87e997c42c
+              DeleteOnTermination: True
+          Tags:
+            -
+              Key: Name 
+              Value: Ansible-Client1-Elasticsearch01
+
+   
+  
+
+  
+
+

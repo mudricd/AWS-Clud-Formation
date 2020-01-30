@@ -1,0 +1,123 @@
+Description: TEST
+Parameters:
+  MyKeyName:
+    Description: Name of an existing EC2 KeyPair
+    Type: "AWS::EC2::KeyPair::KeyName"
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  ChefEnvironment:
+    Description: Name of Chef Environment
+    Type: String
+    AllowedValues:
+      - AWS-Production
+      - AWS-NonProduction
+      - AWS-PPD
+    Default: AWS-NonProduction
+  EC2InsanceType:
+    Description: EC2 Insance Type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+     - t2.micro
+     - t2.nano
+     - t2.small
+    ConstraintDescription: must be a valid EC2 instance type
+  VpcId:
+    Description: ID of the VPC onto which to launch the application
+    Type: AWS::EC2::VPC::Id
+    Default: "vpc-037080e34cae35ead"
+  MyIP:
+    Description: Private IP of the instance
+    Type: String
+    Default: 10.174.21.110
+    AllowedValues:
+      - 10.174.21.110
+      - 10.174.21.111
+      - 10.174.21.110
+    ConstraintDescription: It must ba a valid IP
+  ImageId:
+    Description: ID of the ImageId
+    Type: String
+    Default: ami-0119aa4d67e59007c
+    AllowedValues:
+      - ami-0119aa4d67e59007c
+      - ami-05b0d50be1ff1f6ae
+      - ami-0975ce566eec139c3
+      - ami-0328aad0f6218c429
+
+Resources:
+  SekjuritiGrupa:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Template securty group
+      GroupName: !Sub
+      - ${CFormationName}-NovaSG
+      - { CFormationName: !Ref 'AWS::StackName' }
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+        - IpProtocol: icmp
+          Description: ICMP
+          FromPort: 8
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: ImeGrupe
+  LanchGrupa:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub
+      - ${CFStackName}-MojTemplejt
+      - { CFStackName: !Ref 'AWS::StackName' }
+      LaunchTemplateData:
+        KeyName: !Ref MyKeyName
+        NetworkInterfaces:
+          -
+            Description: !Sub
+              - ${CFStackName}-Elastic01SA-eni
+              - { CFStackName: !Ref 'AWS::StackName' }
+            PrivateIpAddress: !Ref MyIP
+            Groups: 
+              - !GetAtt SekjuritiGrupa.GroupId
+            DeviceIndex: 0
+            SubnetId: subnet-014214c87e997c42c
+            DeleteOnTermination: True
+        ImageId: !Ref ImageId
+        InstanceType: !Ref EC2InsanceType
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: MojTemplejt
+              - Key: Department
+                Value: IT
+        UserData:
+          Fn::Base64: !Sub |
+            #!bin/bash
+            mkdir /TEST
+            cat >> "/root/.ssh/authorized_keys" << EOF
+            ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCanU63ELNFJIjnhDoXNpG4g7gVgsgJrmRA++EfKEKb5mlR7OaXu90bNoroG1ZYbLXNRKvEiZlVx5jMJkWF9Lvk99YwRvAMf1F0A3ik4UmaYSALRLD/agF1e+Ljod/8y20sBezIfsgkDDuv1U3pmGC7khi6WdT5A0WP/kRvX22BAmHHUFNsyXq4maD1YjL5RWTZ+TCqJBcK8w7IPwu5Zj4NxX9dkykwQ1HfM2+E84lI63lsB/GR+bTj7dJm0P3wLAfT9ABXaXzUTiq2bp43V5ZDh/CPRbHF04x2pF9VtPyiyP6pyKfOl4Aeqxs3kIYRm/RgY/+6NPsoweTvE9rHeoUd root@ip-10-174-21-56.tattsgroup.io
+            EOF
+  TestEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LanchGrupa
+        Version:
+          Fn::GetAtt:
+            ["LanchGrupa", "LatestVersionNumber"]
+
+

@@ -1,0 +1,2198 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Lotteries Platform Service Elastic Stack ENI creation template
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: AWS Parameters
+        Parameters:
+          - VpcId
+          - VpcSubnets
+          - KeyName
+      - Label:
+          default: Chef automation parameters
+        Parameters:
+          - ChefEnvironment
+      - Label:
+          default: Elastic Stack parameters
+        Parameters:
+          - ElasticVersion
+          - ElasticsearchInstanceType
+          - Elasticsearch01Subnet
+          - Elasticsearch01IP
+          - Elasticsearch02Subnet
+          - Elasticsearch02IP
+          - Elasticsearch03Subnet
+          - Elasticsearch03IP
+          - Elasticsearch04Subnet
+          - Elasticsearch04IP
+          - Elasticsearch05Subnet
+          - Elasticsearch05IP
+          - Elasticsearch06Subnet
+          - Elasticsearch06IP
+          - KibanaVersion
+          - KibanaInstanceType
+          - Kibana01Subnet
+          - Kibana01IP
+          - Kibana02Subnet
+          - Kibana02IP
+          - LogstashVersion
+      - Label:
+          default: Elastic Stack storage
+        Parameters:
+          - ElasticGB
+      - Label:
+          default: Elastic Stack internal users initial passwords
+        Parameters:
+          - ElasticPassword
+          - KibanaPassword
+          - LogstashPassword
+      - Label:
+          default: SSL pfx file packagesweb url location
+        Parameters:
+          - SslPfxLink
+          - SslPfxPw
+Parameters:
+  VpcId:
+    Description: ID of the VPC onto which to launch the application
+    Type: AWS::EC2::VPC::Id
+    Default: "vpc-037080e34cae35ead"
+  VpcSubnets:
+    Description: The 3 subnets this Stack will be using.
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Default: "subnet-014214c87e997c42c,subnet-07965b4bcee131e6a,subnet-0776d1ae6314f5fca"
+  KeyName:
+    Description: The initial EC2 Key Pair to allow SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Default: "petemeeawskey"
+  ChefEnvironment:
+    Description: Name of Chef Environment
+    AllowedValues:
+      - AWS-Production
+      - AWS-NonProduction
+      - AWS-PPD
+    Type: String
+    Default: AWS-NonProduction
+  ElasticVersion:
+    Description: Elastic Version
+    AllowedValues:
+      - 6.5.3
+      - 6.5.4
+    Type: String
+    Default: 6.5.4
+  ElasticsearchInstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: r4.2xlarge
+    AllowedValues:
+    - i3.large
+    - i3.xlarge
+    - i3.2xlarge
+    - r4.large
+    - r4.xlarge
+    - r4.2xlarge
+    ConstraintDescription: must be a valid EC2 instance type
+  Elasticsearch01Subnet:
+    Description: Subnet for elastic01 node
+    Type: 'AWS::EC2::Subnet::Id'
+    Default: "subnet-014214c87e997c42c"
+  Elasticsearch01IP:
+    Description: Ip Address for elastic01 node
+    Type: String
+    Default: "10.174.21.101"
+  Elasticsearch02Subnet:
+    Description: Subnet for elastic02 node
+    Type: 'AWS::EC2::Subnet::Id'
+    Default: "subnet-07965b4bcee131e6a"
+  Elasticsearch02IP:
+    Description: Ip Address for elastic02 node
+    Type: String
+    Default: "10.174.22.102"
+  Elasticsearch03Subnet:
+    Description: Subnet for elastic03 node
+    Type: 'AWS::EC2::Subnet::Id'
+    Default: "subnet-0776d1ae6314f5fca"
+  Elasticsearch03IP:
+    Description: Ip Address for elastic03 node
+    Type: String
+    Default: "10.174.23.103"
+  Elasticsearch04Subnet:
+    Description: Subnet for elastic04 node
+    Type: 'AWS::EC2::Subnet::Id'
+    Default: "subnet-014214c87e997c42c"
+  Elasticsearch04IP:
+    Description: Ip Address for elastic04 node
+    Type: String
+    Default: "10.174.21.104"
+  Elasticsearch05Subnet:
+    Description: Subnet for elastic05 node
+    Type: 'AWS::EC2::Subnet::Id'
+    Default: "subnet-07965b4bcee131e6a"
+  Elasticsearch05IP:
+    Description: Ip Address for elastic05 node
+    Type: String
+    Default: "10.174.22.105"
+  Elasticsearch06Subnet:
+    Description: Subnet for elastic06 node
+    Type: 'AWS::EC2::Subnet::Id'
+    Default: "subnet-0776d1ae6314f5fca"
+  Elasticsearch06IP:
+    Description: Ip Address for elastic06 node
+    Type: String
+    Default: "10.174.23.106"
+  KibanaVersion:
+    Description: Elastic Version
+    AllowedValues:
+      - 6.5.3
+      - 6.5.4
+    Type: String
+    Default: 6.5.4
+  KibanaInstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.large
+    AllowedValues:
+    - t2.large
+    - t2.xlarge
+    ConstraintDescription: must be a valid EC2 instance type
+  Kibana01Subnet:
+    Description: Subnet for kibana01 node
+    Type: 'AWS::EC2::Subnet::Id'
+    Default: "subnet-014214c87e997c42c"
+  Kibana01IP:
+    Description: Ip Address for kibana01 node
+    Type: String
+    Default: "10.174.21.111"
+  Kibana02Subnet:
+    Description: Subnet for kibana02 node
+    Type: 'AWS::EC2::Subnet::Id'
+    Default: "subnet-07965b4bcee131e6a"
+  Kibana02IP:
+    Description: Ip Address for kibana01 node
+    Type: String
+    Default: "10.174.22.112"
+  LogstashVersion:
+    Description: Logstash Version
+    AllowedValues:
+      - 6.5.3
+      - 6.5.4
+    Type: String
+    Default: 6.5.4
+  ElasticGB:
+    Description: Elastic Storage
+    Type: String
+    Default: 250
+    AllowedValues:
+    - 200
+    - 250
+  ElasticPassword:
+    Description: Elastic main admin password
+    Type: String
+    Default: "TattsGr0up"
+    NoEcho: true
+  KibanaPassword:
+    Description: Kibana internal user password
+    Type: String
+    Default: "TattsGr0up"
+    NoEcho: true
+  LogstashPassword:
+    Description: Logstash internal user password
+    Type: String
+    Default: "TattsGr0up"
+    NoEcho: true
+  SslPfxLink:
+    Description: SSL packages web cert url 
+    Type: String
+    Default: "http://packagesweb.tattsgroup.com/Applications/lotteries/elasticstack/certificates/LOTT-LPS-ELK-AWS-ENI-DEV-654-Cert.pfx"
+  SslPfxPw:
+    Description: SSL packages web cert url password 
+    Type: String
+    Default: "Password1"
+    NoEcho: true
+Mappings:
+  VersionIpMap:
+    6.5.3:
+      Elastic01: 10.X.X.X
+      Elastic02: 10.X.X.X
+      Elastic03: 10.X.X.X
+      Elastic04: 10.X.X.X
+      Elastic05: 10.X.X.X
+      Elastic06: 10.X.X.X
+      Kibana01: 10.X.X.X
+      Kibana02: 10.X.X.X
+      Logstash01: 10.X.X.X
+      Logstash02: 10.X.X.X
+      Logstash03: 10.X.X.X
+      Logstash04: 10.X.X.X
+      Logstash05: 10.X.X.X
+      Logstash06: 10.X.X.X
+    6.5.4:
+      Elastic01: 10.174.21.100
+      Elastic02: 10.X.X.X
+      Elastic03: 10.X.X.X
+      Elastic04: 10.X.X.X
+      Elastic05: 10.X.X.X
+      Elastic06: 10.X.X.X
+      Kibana01: 10.X.X.X
+      Kibana02: 10.X.X.X
+      Logstash01: 10.X.X.X
+      Logstash02: 10.X.X.X
+      Logstash03: 10.X.X.X
+      Logstash04: 10.X.X.X
+      Logstash05: 10.X.X.X
+      Logstash06: 10.X.X.X
+
+Resources:
+  elasticsearchSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub
+        - ${CFStackName}-Elasticsearch-sg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      GroupDescription: LPS Elasticsearch Security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 10.0.0.0/8
+        Description: "Developer ssh port"
+      - IpProtocol: tcp
+        FromPort: 9201
+        ToPort: 9201
+        CidrIp: 10.174.20.0/22
+        Description: "Elastic Search API endpoint for Internal VPC"
+      - IpProtocol: tcp
+        FromPort: 9300
+        ToPort: 9400
+        CidrIp: 10.174.20.0/22
+        Description: "Elastic Search transport for Internal VPC"
+      - IpProtocol: icmp
+        FromPort: 8
+        ToPort: 0
+        CidrIp: 10.0.191.60/32
+        Description: "Icinga Ping Test"
+      Tags:
+        - Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-elasticsearch-sg
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+      VpcId: !Ref VpcId
+  kibanaSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub
+        - ${CFStackName}-Kibana
+        - { CFStackName: !Ref 'AWS::StackName' }
+      GroupDescription: LPS Elasticsearch Security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 10.0.0.0/8
+        Description: "Developer ssh port"
+      - IpProtocol: tcp
+        FromPort: 5601
+        ToPort: 5601
+        CidrIp: 10.174.20.0/22
+        Description: "Kibana Dashboard End Point Internal VPC"
+      - IpProtocol: tcp
+        FromPort: 10933
+        ToPort: 10933
+        CidrIp: 10.27.197.10/32
+        Description: "Primary Octopus Tentacle port"
+      - IpProtocol: tcp
+        FromPort: 10933
+        ToPort: 10933
+        CidrIp: 10.27.69.10/32
+        Description: "Secondary Octopus Tentacle port"
+      Tags:
+        - Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-sg
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+      VpcId: !Ref VpcId
+  logstashSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub
+        - ${CFStackName}-Logstash
+        - { CFStackName: !Ref 'AWS::StackName' }
+      GroupDescription: LPS Elasticsearch Security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 10.0.0.0/8
+        Description: "Developer ssh port"
+      - IpProtocol: tcp
+        FromPort: 9600
+        ToPort: 9600
+        CidrIp: 10.172.28.0/22
+        Description: "API Endpoint for logstash for Internal VPC"
+      - IpProtocol: tcp
+        FromPort: 5040
+        ToPort: 5060
+        CidrIp: 10.0.0.0/8
+        Description: "File Beat ingestion port range"
+      - IpProtocol: tcp
+        FromPort: 6040
+        ToPort: 6060
+        CidrIp: 10.0.0.0/8
+        Description: "Json ingestion port range"
+      - IpProtocol: tcp
+        FromPort: 10933
+        ToPort: 10933
+        CidrIp: 10.27.197.10/32
+        Description: "Primary Octopus Tentacle port"
+      - IpProtocol: tcp
+        FromPort: 10933
+        ToPort: 10933
+        CidrIp: 10.27.69.10/32
+        Description: "Secondary Octopus Tentacle port"
+      - IpProtocol: icmp
+        FromPort: 8
+        ToPort: 0
+        CidrIp: 10.0.191.60/32
+        Description: "Icinga Ping Test"
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-logstash-sg
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+      VpcId: !Ref VpcId
+  Elastic01SALT:
+     Type: AWS::EC2::LaunchTemplate
+     Properties:
+       LaunchTemplateName: !Sub
+         - ${CFStackName}-Elastic01SA-lt
+         - { CFStackName: !Ref 'AWS::StackName' }
+       LaunchTemplateData:
+         ImageId: "ami-05b0d50be1ff1f6ae"
+         InstanceType: "i3.2xlarge"
+         KeyName: !Ref KeyName
+         NetworkInterfaces:
+           -
+             Description: !Sub
+               - ${CFStackName}-Elastic01SA-eni
+               - { CFStackName: !Ref 'AWS::StackName' }
+             PrivateIpAddress: !Ref Elasticsearch01IP
+             Groups: 
+               - !GetAtt elasticsearchSG.GroupId
+             DeviceIndex: 0
+             SubnetId: !Ref Elasticsearch01Subnet
+             DeleteOnTermination: True
+         IamInstanceProfile:
+           Arn: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+         TagSpecifications:
+           - 
+             ResourceType: instance
+             Tags:
+               - Key: "Name"
+                 Value: !Sub
+                   - ${CFStackName}-Elastic01SA-instance
+                   - { CFStackName: !Ref 'AWS::StackName' }
+               - Key: "Service"
+                 Value: "Lotteries"
+               - Key: "OwnerDescription"
+                 Value: "Lotteries-Platform-Services"
+               - Key: "CostCentre"
+                 Value: "005635"
+               - Key: "Schedule"
+                 Value: "Start=08:00|mon-fri;Stop=18:00|mon-fri;Override=off"
+               - Key: "Environment"
+                 Value: !Ref ChefEnvironment
+               - Key: "es_cluster"
+                 Value: !Ref 'AWS::StackName'
+         UserData:
+           Fn::Base64: !Sub |
+             #!/bin/bash -x
+             # Log everything
+             exec 1>/root/lps-userdata-log.log 2>&1
+
+             # Do some chef pre-work
+             /bin/mkdir -p /etc/chef
+             /bin/mkdir -p /var/log/chef
+             chmod 755 /etc/chef /var/log/chef
+
+             # Create mergeOverrides python script
+             cat > "/tmp/mergeOverrides.py" << EOF
+             import json
+             obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Kibana"]}}}')
+             obj['run_list']=[]
+             obj['run_list'].append('role[lotteries_aws_es_elasticsearch]')
+             jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "IcingaAlias": "Elastic01-uat654-lott.tattsnonprod.com", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "ElasticVersion": "${ElasticVersion}"}
+             obj.update(jsonkeys)
+             with open('/etc/chef/chefOverrides.json', 'w+') as f:
+               f.write(json.dumps(obj,indent=4))
+             EOF
+
+             # Create client.rb
+             cat > "/etc/chef/client.rb" << EOF
+             log_location            '/var/log/chef/chef.log'
+             chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+             rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+             validation_client_name  'tattsgroup-validator'
+             validation_key          '/etc/chef/tattsgroup-validator.pem'
+             ssl_verify_mode         :verify_none
+             environment             '${ChefEnvironment}'
+             json_attribs            '/etc/chef/chefOverrides.json'
+             node_name               '${!HOSTNAME}'
+             exit_status             :enabled
+             EOF
+             chmod 644 /etc/chef/client.rb
+
+             # Create knife.rb
+             cat > "/etc/chef/knife.rb" << EOF
+             log_level       :debug
+             log_location    '/var/log/knife.log'
+             client_key      '/etc/chef/client.pem'
+             validation_client_name  'tattsgroup-validator'
+             validation_key  '/etc/chef/tattsgroup-validator.pem'
+             chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+             trusted_certs_dir       '/etc/chef/trusted_certs'
+             ssl_verify_mode :verify_none
+             node_name       '${!HOSTNAME}'
+             EOF
+             chmod 644 /etc/chef/knife.rb
+
+             # Download Chef pem file
+             wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+             chmod 644 /etc/chef/tattsgroup-validator.pem
+          
+             # Setup chefOverrides.json
+             python /tmp/mergeOverrides.py
+             rm -f /tmp/mergeOverrides.py
+
+             # Prepare the Instance Volume Store to FS
+             mkdir -p /data/elastic
+             yum install -y lvm2
+             ls /dev/nvme[0-26]n1
+             for device in $(ls /dev/nvme[0-26]n1); do pvcreate $device; done
+             pvs
+             vgcreate elasticdatavg /dev/nvme[0-26]n1
+             vgs
+             sleep 5
+             lvcreate -l 100%VG -n elasticdatalv elasticdatavg
+             lvs
+             mkfs.xfs /dev/elasticdatavg/elasticdatalv
+             mount /dev/elasticdatavg/elasticdatalv /data/elastic
+
+             # permanently add new file system to fstab 
+             uuid=`blkid | grep elasticdatavg | awk '{print $2}' |  sed 's/"//g'`
+             echo "$uuid /data/elastic        xfs        defaults        0 0" >> /etc/fstab
+
+             # Initiate first chef run
+             chef-client                   
+  Elastic01SAEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone:
+        Fn::Select: 
+          - 0
+          - Fn::GetAZs: ""
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Elastic01SALT
+        Version:
+          Fn::GetAtt:
+            [ "Elastic01SALT", "LatestVersionNumber" ]
+  Elastic02SBLT:
+     Type: AWS::EC2::LaunchTemplate
+     Properties:
+       LaunchTemplateName: !Sub
+         - ${CFStackName}-Elastic02SB-lt
+         - { CFStackName: !Ref 'AWS::StackName' }
+       LaunchTemplateData:
+         ImageId: "ami-05b0d50be1ff1f6ae"
+         InstanceType: "i3.2xlarge"
+         KeyName: !Ref KeyName
+         NetworkInterfaces:
+           -
+             Description: !Sub
+               - ${CFStackName}-Elastic02SB-eni
+               - { CFStackName: !Ref 'AWS::StackName' }
+             PrivateIpAddress: !Ref Elasticsearch02IP
+             Groups: 
+               - !GetAtt elasticsearchSG.GroupId
+             DeviceIndex: 0
+             SubnetId: !Ref Elasticsearch02Subnet
+             DeleteOnTermination: True
+         IamInstanceProfile:
+           Arn: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+         TagSpecifications:
+           - 
+             ResourceType: instance
+             Tags:
+               - Key: "Name"
+                 Value: !Sub
+                   - ${CFStackName}-Elastic02SB-instance
+                   - { CFStackName: !Ref 'AWS::StackName' }
+               - Key: "Service"
+                 Value: "Lotteries"
+               - Key: "OwnerDescription"
+                 Value: "Lotteries-Platform-Services"
+               - Key: "CostCentre"
+                 Value: "005635"
+               - Key: "Schedule"
+                 Value: "Start=08:00|mon-fri;Stop=18:00|mon-fri;Override=off"
+               - Key: "Environment"
+                 Value: !Ref ChefEnvironment
+               - Key: "es_cluster"
+                 Value: !Ref 'AWS::StackName'
+         UserData:
+           Fn::Base64: !Sub |
+             #!/bin/bash -x
+             # Log everything
+             exec 1>/root/lps-userdata-log.log 2>&1
+
+             # Do some chef pre-work
+             /bin/mkdir -p /etc/chef
+             /bin/mkdir -p /var/log/chef
+             chmod 755 /etc/chef /var/log/chef
+
+             # Create mergeOverrides python script
+             cat > "/tmp/mergeOverrides.py" << EOF
+             import json
+             obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Kibana"]}}}')
+             obj['run_list']=[]
+             obj['run_list'].append('role[lotteries_aws_es_elasticsearch]')
+             jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "IcingaAlias": "Elastic02-uat654-lott.tattsnonprod.com", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "ElasticVersion": "${ElasticVersion}"}
+             obj.update(jsonkeys)
+             with open('/etc/chef/chefOverrides.json', 'w+') as f:
+               f.write(json.dumps(obj,indent=4))
+             EOF
+
+             # Create client.rb
+             cat > "/etc/chef/client.rb" << EOF
+             log_location            '/var/log/chef/chef.log'
+             chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+             rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+             validation_client_name  'tattsgroup-validator'
+             validation_key          '/etc/chef/tattsgroup-validator.pem'
+             ssl_verify_mode         :verify_none
+             environment             '${ChefEnvironment}'
+             json_attribs            '/etc/chef/chefOverrides.json'
+             node_name               '${!HOSTNAME}'
+             exit_status             :enabled
+             EOF
+             chmod 644 /etc/chef/client.rb
+
+             # Create knife.rb
+             cat > "/etc/chef/knife.rb" << EOF
+             log_level       :debug
+             log_location    '/var/log/knife.log'
+             client_key      '/etc/chef/client.pem'
+             validation_client_name  'tattsgroup-validator'
+             validation_key  '/etc/chef/tattsgroup-validator.pem'
+             chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+             trusted_certs_dir       '/etc/chef/trusted_certs'
+             ssl_verify_mode :verify_none
+             node_name       '${!HOSTNAME}'
+             EOF
+             chmod 644 /etc/chef/knife.rb
+
+             # Download Chef pem file
+             wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+             chmod 644 /etc/chef/tattsgroup-validator.pem
+          
+             # Setup chefOverrides.json
+             python /tmp/mergeOverrides.py
+             rm -f /tmp/mergeOverrides.py
+
+             # Prepare the Instance Volume Store to FS
+             mkdir -p /data/elastic
+             yum install -y lvm2
+             ls /dev/nvme[0-26]n1
+             for device in $(ls /dev/nvme[0-26]n1); do pvcreate $device; done
+             pvs
+             vgcreate elasticdatavg /dev/nvme[0-26]n1
+             vgs
+             sleep 5
+             lvcreate -l 100%VG -n elasticdatalv elasticdatavg
+             lvs
+             mkfs.xfs /dev/elasticdatavg/elasticdatalv
+             mount /dev/elasticdatavg/elasticdatalv /data/elastic
+
+             # permanently add new file system to fstab 
+             uuid=`blkid | grep elasticdatavg | awk '{print $2}' |  sed 's/"//g'`
+             echo "$uuid /data/elastic        xfs        defaults        0 0" >> /etc/fstab
+
+             # Initiate first chef run
+             chef-client                   
+  Elastic02SBEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone:
+        Fn::Select: 
+          - 1
+          - Fn::GetAZs: ""
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Elastic02SBLT
+        Version:
+          Fn::GetAtt:
+            [ "Elastic02SBLT", "LatestVersionNumber" ]
+  Elastic03SCLT:
+     Type: AWS::EC2::LaunchTemplate
+     Properties:
+       LaunchTemplateName: !Sub
+         - ${CFStackName}-Elastic03SC-lt
+         - { CFStackName: !Ref 'AWS::StackName' }
+       LaunchTemplateData:
+         ImageId: "ami-05b0d50be1ff1f6ae"
+         InstanceType: "i3.2xlarge"
+         KeyName: !Ref KeyName
+         NetworkInterfaces:
+           -
+             Description: !Sub
+               - ${CFStackName}-lastic03SC-eni
+               - { CFStackName: !Ref 'AWS::StackName' }
+             PrivateIpAddress: !Ref Elasticsearch03IP
+             Groups: 
+               - !GetAtt elasticsearchSG.GroupId
+             DeviceIndex: 0
+             SubnetId: !Ref Elasticsearch03Subnet
+             DeleteOnTermination: True
+         IamInstanceProfile:
+           Arn: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+         TagSpecifications:
+           - 
+             ResourceType: instance
+             Tags:
+               - Key: "Name"
+                 Value: !Sub
+                   - ${CFStackName}-Elastic03SC-instance
+                   - { CFStackName: !Ref 'AWS::StackName' }
+               - Key: "Service"
+                 Value: "Lotteries"
+               - Key: "OwnerDescription"
+                 Value: "Lotteries-Platform-Services"
+               - Key: "CostCentre"
+                 Value: "005635"
+               - Key: "Schedule"
+                 Value: "Start=08:00|mon-fri;Stop=18:00|mon-fri;Override=off"
+               - Key: "Environment"
+                 Value: !Ref ChefEnvironment
+               - Key: "es_cluster"
+                 Value: !Ref 'AWS::StackName'
+         UserData:
+           Fn::Base64: !Sub |
+             #!/bin/bash -x
+             # Log everything
+             exec 1>/root/lps-userdata-log.log 2>&1
+
+             # Do some chef pre-work
+             /bin/mkdir -p /etc/chef
+             /bin/mkdir -p /var/log/chef
+             chmod 755 /etc/chef /var/log/chef
+
+             # Create mergeOverrides python script
+             cat > "/tmp/mergeOverrides.py" << EOF
+             import json
+             obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Kibana"]}}}')
+             obj['run_list']=[]
+             obj['run_list'].append('role[lotteries_aws_es_elasticsearch]')
+             jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}",  "IcingaAlias": "Elastic03-uat654-lott.tattsnonprod.com", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "ElasticVersion": "${ElasticVersion}"}
+             obj.update(jsonkeys)
+             with open('/etc/chef/chefOverrides.json', 'w+') as f:
+               f.write(json.dumps(obj,indent=4))
+             EOF
+
+             # Create client.rb
+             cat > "/etc/chef/client.rb" << EOF
+             log_location            '/var/log/chef/chef.log'
+             chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+             rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+             validation_client_name  'tattsgroup-validator'
+             validation_key          '/etc/chef/tattsgroup-validator.pem'
+             ssl_verify_mode         :verify_none
+             environment             '${ChefEnvironment}'
+             json_attribs            '/etc/chef/chefOverrides.json'
+             node_name               '${!HOSTNAME}'
+             exit_status             :enabled
+             EOF
+             chmod 644 /etc/chef/client.rb
+
+             # Create knife.rb
+             cat > "/etc/chef/knife.rb" << EOF
+             log_level       :debug
+             log_location    '/var/log/knife.log'
+             client_key      '/etc/chef/client.pem'
+             validation_client_name  'tattsgroup-validator'
+             validation_key  '/etc/chef/tattsgroup-validator.pem'
+             chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+             trusted_certs_dir       '/etc/chef/trusted_certs'
+             ssl_verify_mode :verify_none
+             node_name       '${!HOSTNAME}'
+             EOF
+             chmod 644 /etc/chef/knife.rb
+
+             # Download Chef pem file
+             wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+             chmod 644 /etc/chef/tattsgroup-validator.pem
+          
+             # Setup chefOverrides.json
+             python /tmp/mergeOverrides.py
+             rm -f /tmp/mergeOverrides.py
+
+             # Prepare the Instance Volume Store to FS
+             mkdir -p /data/elastic
+             yum install -y lvm2
+             ls /dev/nvme[0-26]n1
+             for device in $(ls /dev/nvme[0-26]n1); do pvcreate $device; done
+             pvs
+             vgcreate elasticdatavg /dev/nvme[0-26]n1
+             vgs
+             sleep 5
+             lvcreate -l 100%VG -n elasticdatalv elasticdatavg
+             lvs
+             mkfs.xfs /dev/elasticdatavg/elasticdatalv
+             mount /dev/elasticdatavg/elasticdatalv /data/elastic
+
+             # permanently add new file system to fstab 
+             uuid=`blkid | grep elasticdatavg | awk '{print $2}' |  sed 's/"//g'`
+             echo "$uuid /data/elastic        xfs        defaults        0 0" >> /etc/fstab
+
+             # Initiate first chef run
+             chef-client
+  Elastic03SCEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone:
+        Fn::Select: 
+          - 2
+          - Fn::GetAZs: ""
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Elastic03SCLT
+        Version:
+          Fn::GetAtt:
+            [ "Elastic03SCLT", "LatestVersionNumber" ]
+  Elastic04SCLT:
+     Type: AWS::EC2::LaunchTemplate
+     Properties:
+       LaunchTemplateName: !Sub
+         - ${CFStackName}-Elastic04SC-lt
+         - { CFStackName: !Ref 'AWS::StackName' }
+       LaunchTemplateData:
+         ImageId: "ami-05b0d50be1ff1f6ae"
+         InstanceType: "i3.2xlarge"
+         KeyName: !Ref KeyName
+         NetworkInterfaces:
+           -
+             Description: !Sub
+               - ${CFStackName}-lastic04SC-eni
+               - { CFStackName: !Ref 'AWS::StackName' }
+             PrivateIpAddress: !Ref Elasticsearch04IP
+             Groups: 
+               - !GetAtt elasticsearchSG.GroupId
+             DeviceIndex: 0
+             SubnetId: !Ref Elasticsearch04Subnet
+             DeleteOnTermination: True
+         IamInstanceProfile:
+           Arn: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+         UserData:
+           Fn::Base64: !Sub |
+             #!/bin/bash -x
+             # Log everything
+             exec 1>/root/lps-userdata-log.log 2>&1
+
+             # Do some chef pre-work
+             /bin/mkdir -p /etc/chef
+             /bin/mkdir -p /var/log/chef
+             chmod 755 /etc/chef /var/log/chef
+
+             # Create mergeOverrides python script
+             cat > "/tmp/mergeOverrides.py" << EOF
+             import json
+             obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Kibana"]}}}')
+             obj['run_list']=[]
+             obj['run_list'].append('role[lotteries_aws_es_elasticsearch]')
+             jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "IcingaAlias": "Elastic04-uat654-lott.tattsnonprod.com", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "ElasticVersion": "${ElasticVersion}"}
+             obj.update(jsonkeys)
+             with open('/etc/chef/chefOverrides.json', 'w+') as f:
+               f.write(json.dumps(obj,indent=4))
+             EOF
+
+             # Create client.rb
+             cat > "/etc/chef/client.rb" << EOF
+             log_location            '/var/log/chef/chef.log'
+             chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+             rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+             validation_client_name  'tattsgroup-validator'
+             validation_key          '/etc/chef/tattsgroup-validator.pem'
+             ssl_verify_mode         :verify_none
+             environment             '${ChefEnvironment}'
+             json_attribs            '/etc/chef/chefOverrides.json'
+             node_name               '${!HOSTNAME}'
+             exit_status             :enabled
+             EOF
+             chmod 644 /etc/chef/client.rb
+
+             # Create knife.rb
+             cat > "/etc/chef/knife.rb" << EOF
+             log_level       :debug
+             log_location    '/var/log/knife.log'
+             client_key      '/etc/chef/client.pem'
+             validation_client_name  'tattsgroup-validator'
+             validation_key  '/etc/chef/tattsgroup-validator.pem'
+             chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+             trusted_certs_dir       '/etc/chef/trusted_certs'
+             ssl_verify_mode :verify_none
+             node_name       '${!HOSTNAME}'
+             EOF
+             chmod 644 /etc/chef/knife.rb
+
+             # Download Chef pem file
+             wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+             chmod 644 /etc/chef/tattsgroup-validator.pem
+          
+             # Setup chefOverrides.json
+             python /tmp/mergeOverrides.py
+             rm -f /tmp/mergeOverrides.py
+
+             # Prepare the Instance Volume Store to FS
+             mkdir -p /data/elastic
+             yum install -y lvm2
+             ls /dev/nvme[0-26]n1
+             for device in $(ls /dev/nvme[0-26]n1); do pvcreate $device; done
+             pvs
+             vgcreate elasticdatavg /dev/nvme[0-26]n1
+             vgs
+             sleep 5
+             lvcreate -l 100%VG -n elasticdatalv elasticdatavg
+             lvs
+             mkfs.xfs /dev/elasticdatavg/elasticdatalv
+             mount /dev/elasticdatavg/elasticdatalv /data/elastic
+
+             # permanently add new file system to fstab 
+             uuid=`blkid | grep elasticdatavg | awk '{print $2}' |  sed 's/"//g'`
+             echo "$uuid /data/elastic        xfs        defaults        0 0" >> /etc/fstab
+
+             # Initiate first chef run
+             chef-client
+  Elastic04SCEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone:
+        Fn::Select: 
+          - 0
+          - Fn::GetAZs: ""
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Elastic04SCLT
+        Version:
+          Fn::GetAtt:
+            [ "Elastic04SCLT", "LatestVersionNumber" ]
+      Tags: 
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-Elastic04SC-instance
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - 
+          Key: "Environment"
+          Value: "Test"
+        -
+          Key: "Owner"
+          Value: "Lotteries Platform Services"
+        -
+          Key: "es_cluster"
+          Value: !Ref 'AWS::StackName'
+  Elastic05SCLT:
+     Type: AWS::EC2::LaunchTemplate
+     Properties:
+       LaunchTemplateName: !Sub
+         - ${CFStackName}-Elastic05SC-lt
+         - { CFStackName: !Ref 'AWS::StackName' }
+       LaunchTemplateData:
+         ImageId: "ami-05b0d50be1ff1f6ae"
+         InstanceType: "i3.2xlarge"
+         KeyName: !Ref KeyName
+         NetworkInterfaces:
+           -
+             Description: !Sub
+               - ${CFStackName}-lastic05SB-eni
+               - { CFStackName: !Ref 'AWS::StackName' }
+             PrivateIpAddress: !Ref Elasticsearch05IP
+             Groups: 
+               - !GetAtt elasticsearchSG.GroupId
+             DeviceIndex: 0
+             SubnetId: !Ref Elasticsearch05Subnet
+             DeleteOnTermination: True
+         IamInstanceProfile:
+           Arn: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+         TagSpecifications:
+           - 
+             ResourceType: instance
+             Tags:
+               - Key: "Name"
+                 Value: !Sub
+                   - ${CFStackName}-Elastic05SB-instance
+                   - { CFStackName: !Ref 'AWS::StackName' }
+               - Key: "Service"
+                 Value: "Lotteries"
+               - Key: "OwnerDescription"
+                 Value: "Lotteries-Platform-Services"
+               - Key: "CostCentre"
+                 Value: "005635"
+               - Key: "Schedule"
+                 Value: "Start=08:00|mon-fri;Stop=18:00|mon-fri;Override=off"
+               - Key: "Environment"
+                 Value: !Ref ChefEnvironment
+               - Key: "es_cluster"
+                 Value: !Ref 'AWS::StackName'
+         UserData:
+           Fn::Base64: !Sub |
+             #!/bin/bash -x
+             # Log everything
+             exec 1>/root/lps-userdata-log.log 2>&1
+
+             # Do some chef pre-work
+             /bin/mkdir -p /etc/chef
+             /bin/mkdir -p /var/log/chef
+             chmod 755 /etc/chef /var/log/chef
+
+             # Create mergeOverrides python script
+             cat > "/tmp/mergeOverrides.py" << EOF
+             import json
+             obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Kibana"]}}}')
+             obj['run_list']=[]
+             obj['run_list'].append('role[lotteries_aws_es_elasticsearch]')
+             jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "IcingaAlias": "Elastic05-uat654-lott.tattsnonprod.com", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "ElasticVersion": "${ElasticVersion}"}
+             obj.update(jsonkeys)
+             with open('/etc/chef/chefOverrides.json', 'w+') as f:
+               f.write(json.dumps(obj,indent=4))
+             EOF
+
+             # Create client.rb
+             cat > "/etc/chef/client.rb" << EOF
+             log_location            '/var/log/chef/chef.log'
+             chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+             rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+             validation_client_name  'tattsgroup-validator'
+             validation_key          '/etc/chef/tattsgroup-validator.pem'
+             ssl_verify_mode         :verify_none
+             environment             '${ChefEnvironment}'
+             json_attribs            '/etc/chef/chefOverrides.json'
+             node_name               '${!HOSTNAME}'
+             exit_status             :enabled
+             EOF
+             chmod 644 /etc/chef/client.rb
+
+             # Create knife.rb
+             cat > "/etc/chef/knife.rb" << EOF
+             log_level       :debug
+             log_location    '/var/log/knife.log'
+             client_key      '/etc/chef/client.pem'
+             validation_client_name  'tattsgroup-validator'
+             validation_key  '/etc/chef/tattsgroup-validator.pem'
+             chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+             trusted_certs_dir       '/etc/chef/trusted_certs'
+             ssl_verify_mode :verify_none
+             node_name       '${!HOSTNAME}'
+             EOF
+             chmod 644 /etc/chef/knife.rb
+
+             # Download Chef pem file
+             wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+             chmod 644 /etc/chef/tattsgroup-validator.pem
+          
+             # Setup chefOverrides.json
+             python /tmp/mergeOverrides.py
+             rm -f /tmp/mergeOverrides.py
+
+             # Prepare the Instance Volume Store to FS
+             mkdir -p /data/elastic
+             yum install -y lvm2
+             ls /dev/nvme[0-26]n1
+             for device in $(ls /dev/nvme[0-26]n1); do pvcreate $device; done
+             pvs
+             vgcreate elasticdatavg /dev/nvme[0-26]n1
+             vgs
+             sleep 5
+             lvcreate -l 100%VG -n elasticdatalv elasticdatavg
+             lvs
+             mkfs.xfs /dev/elasticdatavg/elasticdatalv
+             mount /dev/elasticdatavg/elasticdatalv /data/elastic
+
+             # permanently add new file system to fstab 
+             uuid=`blkid | grep elasticdatavg | awk '{print $2}' |  sed 's/"//g'`
+             echo "$uuid /data/elastic        xfs        defaults        0 0" >> /etc/fstab
+
+             # Initiate first chef run
+             chef-client                  
+  Elastic05SCEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone:
+        Fn::Select: 
+          - 1
+          - Fn::GetAZs: ""
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Elastic05SCLT
+        Version:
+          Fn::GetAtt:
+            [ "Elastic05SCLT", "LatestVersionNumber" ]
+  Elastic06SCLT:
+     Type: AWS::EC2::LaunchTemplate
+     Properties:
+       LaunchTemplateName: !Sub
+         - ${CFStackName}-lastic06SC-lt
+         - { CFStackName: !Ref 'AWS::StackName' }
+       LaunchTemplateData:
+         ImageId: "ami-05b0d50be1ff1f6ae"
+         InstanceType: "i3.2xlarge"
+         KeyName: !Ref KeyName
+         NetworkInterfaces:
+           -
+             Description: !Sub
+               - ${CFStackName}-Elastic06SC-eni
+               - { CFStackName: !Ref 'AWS::StackName' }
+             PrivateIpAddress: !Ref Elasticsearch06IP
+             Groups: 
+               - !GetAtt elasticsearchSG.GroupId
+             DeviceIndex: 0
+             SubnetId: !Ref Elasticsearch06Subnet
+             DeleteOnTermination: True
+         IamInstanceProfile:
+           Arn: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+         TagSpecifications:
+           - 
+             ResourceType: instance
+             Tags:
+               - Key: "Name"
+                 Value: !Sub
+                   - ${CFStackName}-Elastic06SC-instance
+                   - { CFStackName: !Ref 'AWS::StackName' }
+               - Key: "Service"
+                 Value: "Lotteries"
+               - Key: "OwnerDescription"
+                 Value: "Lotteries-Platform-Services"
+               - Key: "CostCentre"
+                 Value: "005635"
+               - Key: "Schedule"
+                 Value: "Start=08:00|mon-fri;Stop=18:00|mon-fri;Override=off"
+               - Key: "Environment"
+                 Value: !Ref ChefEnvironment
+               - Key: "es_cluster"
+                 Value: !Ref 'AWS::StackName'
+         UserData:
+           Fn::Base64: !Sub |
+             #!/bin/bash -x
+             # Log everything
+             exec 1>/root/lps-userdata-log.log 2>&1
+
+             # Do some chef pre-work
+             /bin/mkdir -p /etc/chef
+             /bin/mkdir -p /var/log/chef
+             chmod 755 /etc/chef /var/log/chef
+
+             # Create mergeOverrides python script
+             cat > "/tmp/mergeOverrides.py" << EOF
+             import json
+             obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Kibana"]}}}')
+             obj['run_list']=[]
+             obj['run_list'].append('role[lotteries_aws_es_elasticsearch]')
+             jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}",  "IcingaAlias": "Elastic06-uat654-lott.tattsnonprod.com", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "ElasticVersion": "${ElasticVersion}"}
+             obj.update(jsonkeys)
+             with open('/etc/chef/chefOverrides.json', 'w+') as f:
+               f.write(json.dumps(obj,indent=4))
+             EOF
+
+             # Create client.rb
+             cat > "/etc/chef/client.rb" << EOF
+             log_location            '/var/log/chef/chef.log'
+             chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+             rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+             validation_client_name  'tattsgroup-validator'
+             validation_key          '/etc/chef/tattsgroup-validator.pem'
+             ssl_verify_mode         :verify_none
+             environment             '${ChefEnvironment}'
+             json_attribs            '/etc/chef/chefOverrides.json'
+             node_name               '${!HOSTNAME}'
+             exit_status             :enabled
+             EOF
+             chmod 644 /etc/chef/client.rb
+
+             # Create knife.rb
+             cat > "/etc/chef/knife.rb" << EOF
+             log_level       :debug
+             log_location    '/var/log/knife.log'
+             client_key      '/etc/chef/client.pem'
+             validation_client_name  'tattsgroup-validator'
+             validation_key  '/etc/chef/tattsgroup-validator.pem'
+             chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+             trusted_certs_dir       '/etc/chef/trusted_certs'
+             ssl_verify_mode :verify_none
+             node_name       '${!HOSTNAME}'
+             EOF
+             chmod 644 /etc/chef/knife.rb
+
+             # Download Chef pem file
+             wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+             chmod 644 /etc/chef/tattsgroup-validator.pem
+          
+             # Setup chefOverrides.json
+             python /tmp/mergeOverrides.py
+             rm -f /tmp/mergeOverrides.py
+
+             # Prepare the Instance Volume Store to FS
+             mkdir -p /data/elastic
+             yum install -y lvm2
+             ls /dev/nvme[0-26]n1
+             for device in $(ls /dev/nvme[0-26]n1); do pvcreate $device; done
+             pvs
+             vgcreate elasticdatavg /dev/nvme[0-26]n1
+             vgs
+             sleep 5
+             lvcreate -l 100%VG -n elasticdatalv elasticdatavg
+             lvs
+             mkfs.xfs /dev/elasticdatavg/elasticdatalv
+             mount /dev/elasticdatavg/elasticdatalv /data/elastic
+
+             # permanently add new file system to fstab 
+             uuid=`blkid | grep elasticdatavg | awk '{print $2}' |  sed 's/"//g'`
+             echo "$uuid /data/elastic        xfs        defaults        0 0" >> /etc/fstab
+
+             # Initiate first chef run
+             chef-client
+
+             ##
+             ## Elasticsearch password configuration
+             ## Set on Kibana hosts to avoid too much pollution at first from failed commands
+             ## Have to be changed for a better solution
+             ## 
+
+             # wait until elasticsearch is properly started
+             echo "Wait 90sec until elasticsearch is properly started"
+             sleep 90
+
+             # Setup trial license if needed
+             if [[ $(curl -u 'elastic:ChangeMePlease' -s 'https://${Elasticsearch06IP}:9201/_xpack/license/' | grep trial) ]]
+             then
+               echo "Trial license already defined, skipping"
+               curl -u 'elastic:ChangeMePlease' -s 'https://${Elasticsearch06IP}:9201/_xpack/license/'
+             else
+               echo "Setting trial licence, should happen only once on the first node coming up"
+               curl -XPOST -u 'elastic:ChangeMePlease' -H 'Content-Type: application/json' 'https://${Elasticsearch06IP}:9201/_xpack/license/start_trial?acknowledge=true'
+               curl -u 'elastic:ChangeMePlease' -s 'https://${Elasticsearch06IP}:9201/_xpack/license/'
+             fi
+
+             # Setup the initial local users password (elastic, kibana, logstash_system). If it errors out it means it has been done by another node
+             curl -XPUT -u 'elastic:ChangeMePlease' -H 'Content-Type: application/json' -s 'https://${Elasticsearch06IP}:9201/_xpack/security/user/kibana/_password' -d '{ "password":"${KibanaPassword}" }'
+             curl -XPUT -u 'elastic:ChangeMePlease' -H 'Content-Type: application/json' -s 'https://${Elasticsearch06IP}:9201/_xpack/security/user/logstash_system/_password' -d '{ "password":"${LogstashPassword}" }'
+             curl -XPUT -u 'elastic:ChangeMePlease' -H 'Content-Type: application/json' -s 'https://${Elasticsearch06IP}:9201/_xpack/security/user/elastic/_password' -d '{ "password":"${ElasticPassword}" }'
+             
+  Elastic06SCEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone:
+        Fn::Select: 
+          - 2
+          - Fn::GetAZs: ""
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Elastic06SCLT
+        Version:
+          Fn::GetAtt:
+            [ "Elastic06SCLT", "LatestVersionNumber" ]
+
+  Kibana01SALT:
+     Type: AWS::EC2::LaunchTemplate
+     Properties:
+       LaunchTemplateName: !Sub
+         - ${CFStackName}-Kibana01SA-lt
+         - { CFStackName: !Ref 'AWS::StackName' }
+       LaunchTemplateData:
+         ImageId: "ami-05b0d50be1ff1f6ae"
+         InstanceType: !Ref KibanaInstanceType
+         KeyName: !Ref KeyName
+         NetworkInterfaces:
+           -
+             Description: !Sub
+               - ${CFStackName}-Kibana01SA-eni
+               - { CFStackName: !Ref 'AWS::StackName' }
+             PrivateIpAddress: !Ref Kibana01IP
+             Groups: 
+               - !GetAtt elasticsearchSG.GroupId
+               - !GetAtt kibanaSG.GroupId
+             DeviceIndex: 0
+             SubnetId: !Ref Kibana01Subnet
+             DeleteOnTermination: True
+         IamInstanceProfile:
+           Arn: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+         TagSpecifications:
+           - 
+             ResourceType: instance
+             Tags:
+               -
+                 Key: "Name"
+                 Value: !Sub
+                   - ${CFStackName}-Kibana01SA-instance
+                   - { CFStackName: !Ref 'AWS::StackName' }
+               - Key: "Service"
+                 Value: "Lotteries"
+               - Key: "OwnerDescription"
+                 Value: "Lotteries-Platform-Services"
+               - Key: "CostCentre"
+                 Value: "005635"
+               - Key: "Schedule"
+                 Value: "Start=08:00|mon-fri;Stop=18:00|mon-fri;Override=off"
+               - Key: "Environment"
+                 Value: !Ref ChefEnvironment
+               - Key: "es_cluster"
+                 Value: !Ref 'AWS::StackName'
+         UserData:
+           Fn::Base64: !Sub |
+             #!/bin/bash -x
+             # Log everything
+             exec 1>/root/lps-userdata-log.log 2>&1
+
+             # Do some chef pre-work
+             /bin/mkdir -p /etc/chef
+             /bin/mkdir -p /var/log/chef
+             chmod 755 /etc/chef /var/log/chef
+
+             # Create mergeOverrides python script
+             cat > "/tmp/mergeOverrides.py" << EOF
+             import json
+             obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Kibana"]}}}')
+             obj['run_list']=[]
+             obj['run_list'].append('role[lotteries_aws_es_kibana]')
+             jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}"}
+             obj.update(jsonkeys)
+             with open('/etc/chef/chefOverrides.json', 'w+') as f:
+               f.write(json.dumps(obj,indent=4))
+             EOF
+
+             # Create client.rb
+             cat > "/etc/chef/client.rb" << EOF
+             log_location            '/var/log/chef/chef.log'
+             chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+             rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+             validation_client_name  'tattsgroup-validator'
+             validation_key          '/etc/chef/tattsgroup-validator.pem'
+             ssl_verify_mode         :verify_none
+             environment             '${ChefEnvironment}'
+             json_attribs            '/etc/chef/chefOverrides.json'
+             node_name               '${!HOSTNAME}'
+             exit_status             :enabled
+             EOF
+             chmod 644 /etc/chef/client.rb
+
+             # Create knife.rb
+             cat > "/etc/chef/knife.rb" << EOF
+             log_level       :debug
+             log_location    '/var/log/knife.log'
+             client_key      '/etc/chef/client.pem'
+             validation_client_name  'tattsgroup-validator'
+             validation_key  '/etc/chef/tattsgroup-validator.pem'
+             chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+             trusted_certs_dir       '/etc/chef/trusted_certs'
+             ssl_verify_mode :verify_none
+             node_name       '${!HOSTNAME}'
+             EOF
+             chmod 644 /etc/chef/knife.rb
+
+             # Download Chef pem file
+             wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+             chmod 644 /etc/chef/tattsgroup-validator.pem
+          
+             # Setup chefOverrides.json
+             python /tmp/mergeOverrides.py
+             rm -f /tmp/mergeOverrides.py
+
+             # Initiate first chef run
+             chef-client
+  Kibana01SAEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone:
+        Fn::Select: 
+          - 0
+          - Fn::GetAZs: ""
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Kibana01SALT
+        Version:
+          Fn::GetAtt:
+            [ "Kibana01SALT", "DefaultVersionNumber" ]
+  Kibana02SBLT:
+     Type: AWS::EC2::LaunchTemplate
+     Properties:
+       LaunchTemplateName: !Sub
+         - ${CFStackName}-Kibana02SB-lt
+         - { CFStackName: !Ref 'AWS::StackName' }
+       LaunchTemplateData:
+         ImageId: "ami-05b0d50be1ff1f6ae"
+         InstanceType: !Ref KibanaInstanceType
+         KeyName: !Ref KeyName
+         NetworkInterfaces:
+           -
+             Description: !Sub
+               - ${CFStackName}-Kibana02SB-eni
+               - { CFStackName: !Ref 'AWS::StackName' }
+             PrivateIpAddress: !Ref Kibana02IP
+             Groups: 
+               - !GetAtt elasticsearchSG.GroupId
+               - !GetAtt kibanaSG.GroupId
+             DeviceIndex: 0
+             SubnetId: !Ref Kibana02Subnet
+             DeleteOnTermination: True
+         IamInstanceProfile:
+           Arn: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+         TagSpecifications:
+           - 
+             ResourceType: instance
+             Tags:
+               -
+                 Key: "Name"
+                 Value: !Sub
+                   - ${CFStackName}-Kibana02SB-instance
+                   - { CFStackName: !Ref 'AWS::StackName' }
+               - Key: "Service"
+                 Value: "Lotteries"
+               - Key: "OwnerDescription"
+                 Value: "Lotteries-Platform-Services"
+               - Key: "CostCentre"
+                 Value: "005635"
+               - Key: "Schedule"
+                 Value: "Start=08:00|mon-fri;Stop=18:00|mon-fri;Override=off"
+               - Key: "Environment"
+                 Value: !Ref ChefEnvironment
+               - Key: "es_cluster"
+                 Value: !Ref 'AWS::StackName'
+         UserData:
+           Fn::Base64: !Sub |
+             #!/bin/bash -x
+             # Log everything
+             exec 1>/root/lps-userdata-log.log 2>&1
+
+             # Do some chef pre-work
+             /bin/mkdir -p /etc/chef
+             /bin/mkdir -p /var/log/chef
+             chmod 755 /etc/chef /var/log/chef
+
+             # Create mergeOverrides python script
+             cat > "/tmp/mergeOverrides.py" << EOF
+             import json
+             obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Kibana"]}}}')
+             obj['run_list']=[]
+             obj['run_list'].append('role[lotteries_aws_es_kibana]')
+             jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}"}
+             obj.update(jsonkeys)
+             with open('/etc/chef/chefOverrides.json', 'w+') as f:
+               f.write(json.dumps(obj,indent=4))
+             EOF
+
+             # Create client.rb
+             cat > "/etc/chef/client.rb" << EOF
+             log_location            '/var/log/chef/chef.log'
+             chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+             rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+             validation_client_name  'tattsgroup-validator'
+             validation_key          '/etc/chef/tattsgroup-validator.pem'
+             ssl_verify_mode         :verify_none
+             environment             '${ChefEnvironment}'
+             json_attribs            '/etc/chef/chefOverrides.json'
+             node_name               '${!HOSTNAME}'
+             exit_status             :enabled
+             EOF
+             chmod 644 /etc/chef/client.rb
+
+             # Create knife.rb
+             cat > "/etc/chef/knife.rb" << EOF
+             log_level       :debug
+             log_location    '/var/log/knife.log'
+             client_key      '/etc/chef/client.pem'
+             validation_client_name  'tattsgroup-validator'
+             validation_key  '/etc/chef/tattsgroup-validator.pem'
+             chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+             trusted_certs_dir       '/etc/chef/trusted_certs'
+             ssl_verify_mode :verify_none
+             node_name       '${!HOSTNAME}'
+             EOF
+             chmod 644 /etc/chef/knife.rb
+
+             # Download Chef pem file
+             wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+             chmod 644 /etc/chef/tattsgroup-validator.pem
+          
+             # Setup chefOverrides.json
+             python /tmp/mergeOverrides.py
+             rm -f /tmp/mergeOverrides.py
+
+             # Initiate first chef run
+             chef-client
+  Kibana02SBEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone:
+        Fn::Select: 
+          - 1
+          - Fn::GetAZs: ""
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Kibana02SBLT
+        Version:
+          Fn::GetAtt:
+            [ "Kibana02SBLT", "DefaultVersionNumber" ]
+
+
+  LogstashAutoscalingGroupNew:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub
+        - ${CFStackName}-LogstashAutoscalingGroupNew
+        - { CFStackName: !Ref 'AWS::StackName' }
+      AvailabilityZones:
+        Fn::GetAZs: ''
+      VPCZoneIdentifier: !Ref VpcSubnets
+      LaunchConfigurationName:  !Ref LogstashLaunchConfigNew
+      MinSize: '3'
+      MaxSize: '6'
+      DesiredCapacity: '3'
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 600
+      TargetGroupARNs:
+        - Ref: LogstashLottTargetGroup
+        - Ref: LogstashAsgardTargetGroup
+        - Ref: LogstashAEMNEWTargetGroup
+        - Ref: LogstashCLSTargetGroup
+        - Ref: LogstashCONTargetGroup
+        - Ref: LogstashBANKTargetGroup
+        - Ref: LogstashIAMTargetGroup
+        - Ref: LogstashTISMTargetGroup
+        - Ref: LogstashFUSETargetGroup
+      TerminationPolicies:
+        - NewestInstance
+      Tags: 
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-Logstash-asg-new
+            - { CFStackName: !Ref 'AWS::StackName' }
+          PropagateAtLaunch: 'true'
+        - Key: "Service"
+          Value: "Lotteries"
+          PropagateAtLaunch: 'true'
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+          PropagateAtLaunch: 'true'
+        - Key: "CostCentre"
+          Value: "005635"
+          PropagateAtLaunch: 'true'
+        - Key: "Schedule"
+          Value: "Start=08:00|mon-fri;Stop=18:00|mon-fri;Override=off"
+          PropagateAtLaunch: 'true'
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+          PropagateAtLaunch: 'true'
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+          PropagateAtLaunch: 'true'
+  LogstashLaunchConfigNew:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-05b0d50be1ff1f6ae
+      SecurityGroups: 
+        - !Ref logstashSG
+      InstanceType: t2.2xlarge
+      IamInstanceProfile: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+      KeyName: !Ref KeyName
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sdi"
+          Ebs:
+            Encrypted: "true"
+            VolumeType: "gp2"
+            DeleteOnTermination: "false"
+            VolumeSize: "100"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -x
+          # Log everything
+          exec 1>/root/lps-userdata-log.log 2>&1
+
+          # Create the persistent queue PV/VG/LV for easy future manipulation
+          mkdir -p /data/logstash
+          yum install -y lvm2
+          pvcreate /dev/xvdi
+          vgcreate logstashdatavg /dev/xvdi
+          lvcreate -l 100%VG -n logstashdatalv logstashdatavg
+          mkfs.xfs /dev/logstashdatavg/logstashdatalv
+          mount /dev/logstashdatavg/logstashdatalv /data/logstash
+          mkdir -p /data/logstash/queue
+
+          # permanently add new file system to fstab 
+          uuid=`blkid | grep logstashdatavg | awk '{print $2}' |  sed 's/"//g'`
+          echo "$uuid /data/logstash        xfs        defaults        0 0" >> /etc/fstab
+          
+          # Do some chef pre-work
+          /bin/mkdir -p /etc/chef
+          /bin/mkdir -p /var/log/chef
+          chmod 755 /etc/chef /var/log/chef
+
+          # Create mergeOverrides python script
+          cat > "/tmp/mergeOverrides.py" << EOF
+          import json
+          obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Logstash"]}}}')
+          obj['run_list']=[]
+          obj['run_list'].append('role[lotteries_aws_es_logstash]')
+          jsonkeys = {"ClusterName": "${AWS::StackName}","ElasticPassword": "${ElasticPassword}","LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "LogstashVersion": "${LogstashVersion}", "ElasticVersion": "${ElasticVersion}"}
+          obj.update(jsonkeys)
+          with open('/etc/chef/chefOverrides.json', 'w+') as f:
+            f.write(json.dumps(obj,indent=4))
+          EOF
+
+          # Create client.rb
+          cat > "/etc/chef/client.rb" << EOF
+          log_location            '/var/log/chef/chef.log'
+          chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+          rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+          validation_client_name  'tattsgroup-validator'
+          validation_key          '/etc/chef/tattsgroup-validator.pem'
+          ssl_verify_mode         :verify_none
+          environment             '${ChefEnvironment}'
+          json_attribs            '/etc/chef/chefOverrides.json'
+          node_name               '${!HOSTNAME}'
+          exit_status             :enabled
+          EOF
+          chmod 644 /etc/chef/client.rb
+
+          # Create knife.rb
+          cat > "/etc/chef/knife.rb" << EOF
+          log_level       :debug
+          log_location    '/var/log/knife.log'
+          client_key      '/etc/chef/client.pem'
+          validation_client_name  'tattsgroup-validator'
+          validation_key  '/etc/chef/tattsgroup-validator.pem'
+          chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+          trusted_certs_dir       '/etc/chef/trusted_certs'
+          ssl_verify_mode :verify_none
+          node_name       '${!HOSTNAME}'
+          EOF
+          chmod 644 /etc/chef/knife.rb
+
+          # Download Chef pem file
+          wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+          chmod 644 /etc/chef/tattsgroup-validator.pem
+          
+          # Setup chefOverrides.json
+          python /tmp/mergeOverrides.py
+          rm -f /tmp/mergeOverrides.py
+
+          # Initiate first chef run
+          chef-client
+
+
+  KibanaInternalLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupName: !Sub
+        - ${CFStackName}-Kibana-ELB
+        - { CFStackName: !Ref 'AWS::StackName' }
+      GroupDescription: Allow Kibana users to access internal ELB
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 10.0.0.0/8
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-alb-sg
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  KibanaListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Certificates:
+      - CertificateArn: "arn:aws:acm:ap-southeast-2:194141084398:certificate/ccbd9440-f986-46a7-8b6f-db749c11b2d5"
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: 
+          Ref: KibanaTargetGroup
+      LoadBalancerArn:
+        Ref: KibanaApplicationLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+  KibanaApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub
+        - ${CFStackName}-Kibana-alb
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Scheme: internal
+      Subnets: !Ref VpcSubnets
+      SecurityGroups:
+        - Ref: KibanaInternalLoadBalancerSecurityGroup
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-alb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  KibanaTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 15
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTPS
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: '200,302'
+      Name: !Sub
+        - ${CFStackName}-kib-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5601
+      Protocol: HTTPS
+      TargetType: ip
+      VpcId: !Ref VpcId
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+        - Key: slow_start.duration_seconds
+          Value: 30
+        - Key: stickiness.enabled
+          Value: true
+        - Key: stickiness.lb_cookie.duration_seconds
+          Value: 28800
+        - Key: stickiness.type
+          Value: lb_cookie
+      Targets:
+        - AvailabilityZone:
+            Fn::Select: 
+              - 0
+              - Fn::GetAZs: ""
+          Id: !Ref Kibana01IP
+          Port: 5601
+        - AvailabilityZone:
+            Fn::Select: 
+              - 1
+              - Fn::GetAZs: ""
+          Id: !Ref Kibana02IP
+          Port: 5601
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+
+  LogstashTheLottAPIListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashLottTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5048
+      Protocol: TCP
+  LogstashAsgardListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashAsgardTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5046
+      Protocol: TCP
+  LogstashAEMNEWListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashAEMNEWTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5051
+      Protocol: TCP
+  LogstashCLSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashCLSTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5049
+      Protocol: TCP
+  LogstashCONListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashCONTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5040
+      Protocol: TCP
+  LogstashBANKListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashBANKTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5055
+      Protocol: TCP
+  LogstashIAMListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashIAMTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5056
+      Protocol: TCP
+  LogstashTISMListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashTISMTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5060
+      Protocol: TCP
+  LogstashFUSEListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashFUSETargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5044
+      Protocol: TCP
+  LogstashNetworkLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub
+        - ${CFStackName}-Logstash-nlb
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Scheme: internal
+      Type: network
+      Subnets: !Ref VpcSubnets
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-logstash-nlb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashLottTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-lot-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5048
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashAsgardTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-asg-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5046
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashAEMNEWTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-aemnew-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5051
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashCLSTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-cls-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5049
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"          
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashCONTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-con-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5040
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"          
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashBANKTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-bank-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5055
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"          
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashIAMTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-iam-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5056
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"          
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashTISMTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-tism-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5060
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"          
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashFUSETargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-fuse-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5044
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "Lotteries-Platform-Services"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"          
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+     
+Outputs:
+  Elastic01ENI:
+    Value: !Ref Elasticsearch01IP
+    Description: Elastic01 Private ip address
+    Export:
+      Name: !Sub "${AWS::StackName}-Elastic01-ip"
+  Elastic02ENI:
+    Value: !Ref Elasticsearch02IP
+    Description: Elastic02 Private ip address
+    Export:
+      Name: !Sub "${AWS::StackName}-Elastic02-ip"
+  Elastic03ENI:
+    Value: !Ref Elasticsearch03IP
+    Description: Elastic03 Private ip address
+    Export:
+      Name: !Sub "${AWS::StackName}-Elastic03-ip"
+  Elastic04ENI:
+    Value: !Ref Elasticsearch04IP
+    Description: Elastic04 Private ip address
+    Export:
+      Name: !Sub "${AWS::StackName}-Elastic04-ip"
+  Elastic05ENI:
+    Value: !Ref Elasticsearch05IP
+    Description: Elastic05 Private ip address
+    Export:
+      Name: !Sub "${AWS::StackName}-Elastic05-ip"
+  Elastic06ENI:
+    Value: !Ref Elasticsearch06IP
+    Description: Elastic06 Private ip address
+    Export:
+      Name: !Sub "${AWS::StackName}-Elastic06-ip"
+  Kibana01ENI:
+    Value: !Ref Kibana01IP
+    Description: Kibana01 Private ip address
+    Export:
+      Name: !Sub "${AWS::StackName}-Kibana01-ip"
+  Kibana02ENI:
+    Value: !Ref Kibana02IP
+    Description: Kibana02 Private ip address
+    Export:
+      Name: !Sub "${AWS::StackName}-Kibana02-ip"

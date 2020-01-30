@@ -1,0 +1,153 @@
+  LogstashAutoscalingGroupNEW:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub
+        - ${CFStackName}-LogstashAutoscalingGroupNEW
+        - { CFStackName: !Ref 'AWS::StackName' }
+      AvailabilityZones:
+        Fn::GetAZs: ''
+      VPCZoneIdentifier: !Ref VpcSubnets
+      LaunchConfigurationName:  !Ref LogstashLaunchConfigNEW
+      MinSize: '3'
+      MaxSize: '6'
+      DesiredCapacity: '3'
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 600
+      TargetGroupARNs:
+        - Ref: LogstashAsgardTargetGroup
+        - Ref: LogstashLottTargetGroup
+        - Ref: LogstashCLSTargetGroup
+        - Ref: LogstashWCMSTargetGroup
+        - Ref: LogstashAEMTargetGroup
+        - Ref: LogstashENSTargetGroup
+        - Ref: LogstashACMTargetGroup
+        - Ref: LogstashBANKTargetGroup
+        - Ref: LogstashCONTargetGroup
+        - Ref: LogstashFUSETargetGroup
+      TerminationPolicies:
+        - NewestInstance
+      Tags: 
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-Logstash-instance
+            - { CFStackName: !Ref 'AWS::StackName' }
+          PropagateAtLaunch: 'true'
+        - Key: "Service"
+          Value: "Lotteries"
+          PropagateAtLaunch: 'true'
+        - Key: "OwnerDescription"
+          Value: "Owner=peter.mee@tattsgroup.com;Description=Elastic"
+          PropagateAtLaunch: 'true'
+        - Key: "Billing"
+          Value: "OPEX"
+          PropagateAtLaunch: 'true'
+        - Key: "CostCentre"
+          Value: "005635"
+          PropagateAtLaunch: 'true'
+        - Key: "Schedule"
+          Value: "24x7"
+          PropagateAtLaunch: 'true'
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+          PropagateAtLaunch: 'true'
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+          PropagateAtLaunch: 'true'
+  LogstashLaunchConfigNEW:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-05b0d50be1ff1f6ae
+      SecurityGroups: 
+        - !Ref logstashSG
+      InstanceType: t2.2xlarge
+      IamInstanceProfile: "arn:aws:iam::027867781779:instance-profile/iam-lotteries-baseline-prod-ElasticStackRole-InstanceProfile-9GIRIMFIR9WN"
+      KeyName: !Ref KeyName
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sdi"
+          Ebs:
+            Encrypted: "true"
+            VolumeType: "gp2"
+            DeleteOnTermination: "false"
+            VolumeSize: "100"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -x
+          # Log everything
+          exec 1>/root/lps-userdata-log.log 2>&1
+          # Create the persistent queue PV/VG/LV for easy future manipulation
+          mkdir -p /data/logstash
+          yum install -y lvm2
+          pvcreate /dev/xvdi
+          vgcreate logstashdatavg /dev/xvdi
+          lvcreate -l 100%VG -n logstashdatalv logstashdatavg
+          mkfs.xfs /dev/logstashdatavg/logstashdatalv
+          mount /dev/logstashdatavg/logstashdatalv /data/logstash
+          mkdir -p /data/logstash/queue
+          # permanently add new file system to fstab 
+          uuid=`blkid | grep logstashdatavg | awk '{print $2}' |  sed 's/"//g'`
+          echo "$uuid /data/logstash        xfs        defaults        0 0" >> /etc/fstab
+          
+          # Do some chef pre-work
+          /bin/mkdir -p /etc/chef
+          /bin/mkdir -p /var/log/chef
+          chmod 755 /etc/chef /var/log/chef
+          # Create mergeOverrides python script
+          cat > "/tmp/mergeOverrides.py" << EOF
+          import json
+          obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Logstash"]}}}')
+          obj['run_list']=[]
+          obj['run_list'].append('role[lotteries_aws_es_logstash]')
+          jsonkeys = {"ClusterName": "${AWS::StackName}","ElasticPassword": "${ElasticPassword}","LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "LogstashVersion": "${LogstashVersion}", "ElasticVersion": "${ElasticVersion}"}
+          obj.update(jsonkeys)
+          with open('/etc/chef/chefOverrides.json', 'w+') as f:
+            f.write(json.dumps(obj,indent=4))
+          EOF
+          # Create client.rb
+          cat > "/etc/chef/client.rb" << EOF
+          log_location            '/var/log/chef/chef.log'
+          chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+          rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+          validation_client_name  'tattsgroup-validator'
+          validation_key          '/etc/chef/tattsgroup-validator.pem'
+          ssl_verify_mode         :verify_none
+          environment             '${ChefEnvironment}'
+          json_attribs            '/etc/chef/chefOverrides.json'
+          node_name               '${!HOSTNAME}'
+          exit_status             :enabled
+          EOF
+          chmod 644 /etc/chef/client.rb
+          # Create knife.rb
+          cat > "/etc/chef/knife.rb" << EOF
+          log_level       :debug
+          log_location    '/var/log/knife.log'
+          client_key      '/etc/chef/client.pem'
+          validation_client_name  'tattsgroup-validator'
+          validation_key  '/etc/chef/tattsgroup-validator.pem'
+          chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+          trusted_certs_dir       '/etc/chef/trusted_certs'
+          ssl_verify_mode :verify_none
+          node_name       '${!HOSTNAME}'
+          EOF
+          chmod 644 /etc/chef/knife.rb
+          # Download Chef pem file
+          wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+          chmod 644 /etc/chef/tattsgroup-validator.pem
+          
+          # Setup chefOverrides.json
+          python /tmp/mergeOverrides.py
+          rm -f /tmp/mergeOverrides.py
+          # wait until elasticsearch is properly started
+          echo "Wait 60sec until elasticsearch is properly started"
+          sleep 60
+          # Initiate first chef run
+          chef-client
+  LogstashASGScalingPolicyNEW:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref LogstashAutoscalingGroupNEW
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 85
