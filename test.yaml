@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: TEST
+Resources:
+  SekjuritiGrupa:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Template securty group
+      GroupName: !Sub
+      - ${CFormationName}-NovaSG
+      - { CFormationName: !Ref 'AWS::StackName' }
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+        - IpProtocol: icmp
+          Description: ICMP
+          FromPort: 8
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+     # VpcId:
+      Tags:
+        - Key: Name
+          Value: ImeGrupe
+
+
+

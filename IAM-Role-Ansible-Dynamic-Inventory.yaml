@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  ElasticstackAnsibleRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Path: /
+      RoleName: ElasticstackAnsibleRole
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+      Policies:
+        - PolicyName: Elasticstack-Ansible-Dynamic-Inventory
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action: 
+                - 'ec2:Describe*'
+                - 'route53:ListHostedZones'
+                - 'route53:ListResourceRecordSets'
+                Effect: Allow
+                Resource: '*'
+  InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref ElasticstackAnsibleRole
