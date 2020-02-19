@@ -245,6 +245,7 @@ Resources:
                 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCanU63ELNFJIjnhDoXNpG4g7gVgsgJrmRA++EfKEKb5mlR7OaXu90bNoroG1ZYbLXNRKvEiZlVx5jMJkWF9Lvk99YwRvAMf1F0A3ik4UmaYSALRLD/agF1e+Ljod/8y20sBezIfsgkDDuv1U3pmGC7khi6WdT5A0WP/kRvX22BAmHHUFNsyXq4maD1YjL5RWTZ+TCqJBcK8w7IPwu5Zj4NxX9dkykwQ1HfM2+E84lI63lsB/GR+bTj7dJm0P3wLAfT9ABXaXzUTiq2bp43V5ZDh/CPRbHF04x2pF9VtPyiyP6pyKfOl4Aeqxs3kIYRm/RgY/+6NPsoweTvE9rHeoUd root@ip-10-174-21-56.tattsgroup.io
                 EOF
                 #Add nginx conf for docker
+                touch /root/nginx.conf
                 cat >> "/root/nginx.conf" << EOF
                 events {
                   worker_connections  1024;
