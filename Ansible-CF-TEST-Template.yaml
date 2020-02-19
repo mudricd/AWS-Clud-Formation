@@ -98,6 +98,8 @@ Resources:
                   Value: LAPS
                 - Key: Group
                   Value: Elasticsearch
+                - Key: ClusterName
+                  Value: Test_Cluster
           UserData:
             Fn::Base64: !Sub |
                 #!/bin/bash
@@ -235,6 +237,8 @@ Resources:
               Value: Ansible-Client-Kibana01
             - Key: Group
               Value: Kibana
+            - Key: ClusterName
+              Value: Test_Cluster
           UserData:
             Fn::Base64: !Sub |
                 #!/bin/bash
@@ -283,5 +287,7 @@ Resources:
               Value: Ansible-Client-Logstash01
             - Key: Group
               Value: Logstash  
+            - Key: ClusterName
+              Value: Test_Cluster
 
 
