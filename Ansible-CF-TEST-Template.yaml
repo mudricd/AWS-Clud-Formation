@@ -98,8 +98,6 @@ Resources:
                   Value: LAPS
                 - Key: Group
                   Value: Elasticsearch
-                - Key: ClusterName
-                  Value: Test_Cluster
           UserData:
             Fn::Base64: !Sub |
                 #!/bin/bash
