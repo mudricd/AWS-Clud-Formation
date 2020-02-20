@@ -99,7 +99,7 @@ Resources:
                 - Key: Group
                   Value: Elasticsearch
                 - Key: ClusterName
-                  Value: Test_Cluster
+                  Value: Test_Cluster1
                 - Key: Environment
                   Value: NonProd 
           UserData:
