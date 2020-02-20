@@ -100,6 +100,8 @@ Resources:
                   Value: Elasticsearch
                 - Key: ClusterName
                   Value: Test_Cluster
+                - Key: Environment
+                  Value: NonProd 
           UserData:
             Fn::Base64: !Sub |
                 #!/bin/bash
