@@ -111,7 +111,7 @@ Resources:
                 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDOmN6IqFV14tTCqbGIM7nWVbzMwvOcI8BULHcYJ61YgEQCsWgOLj/ou5u2b0g+DysyP8vV2BOn6y37dgo41VNMMAfxCJHYdZuGNJOCntouRLaa5vjN710yXUl8IkwjTh1L35vBxVCpqdcSCRluo5XP2C2+pWl/n0SuxORYykHSvFAxn/Dr1t7hiSzyw1AxMFYR5+NvKz1UuaJ0QknNWAJlvTK3xB+wd4bte0EXBO7mKUB2iJBg9XvRZeKCQnYFhO98FrIjC5LGE+GESET9e07qsvs5XhJvomU9tTMO5ts1NHQYgrs5Wb/3TZZFEUEGMLn40ZeIDxgYNQ1RZBWTObJX root@awx
                 EOF
     
-    Server01:
+    Server1:
         Type: AWS::EC2::Instance
         Properties:  
           LaunchTemplate: 
@@ -135,7 +135,7 @@ Resources:
               Key: Name 
               Value: Ansible-Jenkins-Client-Elasticsearch01
 
-    Server02:
+    Server2:
         Type: AWS::EC2::Instance
         Properties:  
           LaunchTemplate: 
@@ -159,7 +159,7 @@ Resources:
               Key: Name 
               Value: Ansible-Jenkins-Client-Elasticsearch02
   
-    Server03:
+    Server3:
         Type: AWS::EC2::Instance
         Properties:  
           LaunchTemplate: 
@@ -183,7 +183,7 @@ Resources:
               Key: Name 
               Value: Ansible-Jenkins-Client-Elasticsearch03
   
-    Server04:
+    Server4:
         Type: AWS::EC2::Instance
         Properties:  
           LaunchTemplate: 
@@ -234,7 +234,7 @@ Resources:
                 }
                 EOF
   
-    Server05:
+    Server5:
         Type: AWS::EC2::Instance
         Properties:  
           LaunchTemplate: 
