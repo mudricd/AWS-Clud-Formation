@@ -172,9 +172,9 @@ Resources:
               Key: Name 
               Value: Ansible-SandpitServer
             - Key: ClusterName
-              Value: Test_Cluster_new
+              Value: Test_Cluster_Sandpit
             - Key: Environment
-              Value: NonProd 
+              Value: Test 
             - Key: Group
               Value: Elasticsearch  
           UserData:
