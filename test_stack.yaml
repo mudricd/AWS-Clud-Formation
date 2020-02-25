@@ -30,7 +30,7 @@
 #       - ami-0328aad0f6218c429
 
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Ansible Tower and Jenkins
+Description: One instance and security group
 
 # P A R A M E T E R S
 
@@ -146,6 +146,7 @@ Resources:
                 yum -y update && reboot
                 cat >> "/root/.ssh/authorized_keys" << EOF
                 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCanU63ELNFJIjnhDoXNpG4g7gVgsgJrmRA++EfKEKb5mlR7OaXu90bNoroG1ZYbLXNRKvEiZlVx5jMJkWF9Lvk99YwRvAMf1F0A3ik4UmaYSALRLD/agF1e+Ljod/8y20sBezIfsgkDDuv1U3pmGC7khi6WdT5A0WP/kRvX22BAmHHUFNsyXq4maD1YjL5RWTZ+TCqJBcK8w7IPwu5Zj4NxX9dkykwQ1HfM2+E84lI63lsB/GR+bTj7dJm0P3wLAfT9ABXaXzUTiq2bp43V5ZDh/CPRbHF04x2pF9VtPyiyP6pyKfOl4Aeqxs3kIYRm/RgY/+6NPsoweTvE9rHeoUd root@ip-10-174-21-56.tattsgroup.io
+                ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDOmN6IqFV14tTCqbGIM7nWVbzMwvOcI8BULHcYJ61YgEQCsWgOLj/ou5u2b0g+DysyP8vV2BOn6y37dgo41VNMMAfxCJHYdZuGNJOCntouRLaa5vjN710yXUl8IkwjTh1L35vBxVCpqdcSCRluo5XP2C2+pWl/n0SuxORYykHSvFAxn/Dr1t7hiSzyw1AxMFYR5+NvKz1UuaJ0QknNWAJlvTK3xB+wd4bte0EXBO7mKUB2iJBg9XvRZeKCQnYFhO98FrIjC5LGE+GESET9e07qsvs5XhJvomU9tTMO5ts1NHQYgrs5Wb/3TZZFEUEGMLn40ZeIDxgYNQ1RZBWTObJX root@awx
                 EOF  
     Server01:
         Type: AWS::EC2::Instance
