@@ -170,7 +170,11 @@ Resources:
           Tags:
             -
               Key: Name 
-              Value: SRV1
+              Value: SandpitServer
+            - Key: ClusterName
+              Value: Test_Cluster_new
+            - Key: Environment
+              Value: NonProd 
           UserData:
             Fn::Base64: !Sub |
                 #!/bin/bash
