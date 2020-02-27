@@ -177,7 +177,7 @@ Resources:
               Value: Test 
             - Key: Group
               Value: Elasticsearch  
-            - Key: Kibana
+            - Key: KibanaTest
               Value: Group
             - Key: LogstashTest
               Value: Group
