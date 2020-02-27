@@ -98,6 +98,8 @@ Resources:
                   Value: LAPS
                 - Key: Group
                   Value: Elasticsearch
+                - Key: ElasticsearchProd
+                  Value: Group
                 - Key: ClusterName
                   Value: Test_Cluster
                 - Key: Environment
