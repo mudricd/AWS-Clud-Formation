@@ -176,7 +176,9 @@ Resources:
             - Key: Environment
               Value: Test 
             - Key: Group
-              Value: Elasticsearch  
+              Value: Elasticsearch 
+            - Key: ElasticsearchTest
+              Value: Group 
             - Key: KibanaTest
               Value: Group
             - Key: LogstashTest
