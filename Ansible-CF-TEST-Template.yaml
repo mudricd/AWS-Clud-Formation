@@ -291,7 +291,9 @@ Resources:
               Key: Name 
               Value: Ansible-Client-Logstash01
             - Key: Group
-              Value: Logstash  
+              Value: Logstash 
+            - Key: LogstashProd
+              Value: Group  
 
 
 
