@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  ElasticstackBackupLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Path: /
+      RoleName: ElasticstackLambdaEC2-StartStop
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: elastic-lambda-start-stop-s3
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                - 's3:ListBucket'
+                - 's3:GetBucketLocation'
+                - 's3:ListBucketMultipartUploads'
+                - 's3:ListBucketVersions'
+                - 's3:GetObject'
+                - 's3:PutObject'
+                - 's3:DeleteObject'
+                - 's3:AbortMultipartUpload'
+                - 's3:ListMultipartUploadParts'
+                - 'logs:CreateLogGroup'
+                - 'logs:CreateLogStream'
+                - 'logs:PutLogEvents'
+                - 'lambda:InvokeFunction'
+                - 'ec2:DescribeNetworkInterfaces'
+                - 'ec2:CreateNetworkInterface'
+                - 'ec2:DeleteNetworkInterface'
+                - 'ec2:Start*'
+                - 'ec2:Stop*'
+                - 'ec2:Describe*'
+                - 'secretsmanager:GetSecretValue'
+                Effect: Allow
+                Resource: '*'
