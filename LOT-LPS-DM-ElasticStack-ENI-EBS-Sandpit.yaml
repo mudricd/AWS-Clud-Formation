@@ -1,0 +1,984 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Lotteries Platform Service Elastic Stack ENI creation template
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: AWS Parameters
+        Parameters:
+          - VpcId
+          - VpcSubnets
+          - KeyName
+      - Label:
+          default: Chef automation parameters
+        Parameters:
+          - ChefEnvironment
+      - Label:
+          default: Elastic Stack parameters
+        Parameters:
+          - ElasticVersion
+          - KibanaVersion
+          - LogstashVersion
+          - SandpitInstanceType
+          - SandpitSubnetId
+      - Label:
+          default: Elastic Stack storage
+        Parameters:
+          - SandpitGB
+      - Label:
+          default: Elastic Stack internal users initial passwords
+        Parameters:
+          - ElasticPassword
+          - KibanaPassword
+          - LogstashPassword
+          - BeatsSystemPassword
+      - Label:
+          default: SSL pfx file packagesweb url location
+        Parameters:
+          - SslPfxLink
+          - SslPfxPw
+      - Label:
+          default: Elastic CA 
+        Parameters:
+          - ElasticCaPwd
+      - Label:
+          default: Endpoint Service Configuration
+        Parameters:
+          - EndpointAccount
+Parameters:
+  VpcId:
+    Description: ID of the VPC onto which to launch the application
+    Type: AWS::EC2::VPC::Id
+    Default: "vpc-037080e34cae35ead"
+  VpcSubnets:
+    Description: The 3 subnets this Stack will be using.
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Default: "subnet-014214c87e997c42c,subnet-0776d1ae6314f5fca,subnet-07965b4bcee131e6a"
+  KeyName:
+    Description: The initial EC2 Key Pair to allow SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Default: "petemeeawskey"
+  ChefEnvironment:
+    Description: Name of Chef Environment
+    AllowedValues:
+      - AWS-Production
+      - AWS-NonProduction
+      - AWS-PPD
+    Type: String
+    Default: AWS-NonProduction
+  ElasticVersion:
+    Description: Elastic Version
+    AllowedValues:
+      - 6.5.3
+      - 6.5.4
+      - 6.6.2
+      - 6.8.0
+      - 7.1.1
+      - 7.4.2
+      - 7.5.2
+    Type: String
+    Default: 7.5.2
+  KibanaVersion:
+    Description: Kibana Version
+    AllowedValues:
+      - 6.5.3
+      - 6.5.4
+      - 6.6.2
+      - 6.8.0
+      - 7.1.1
+      - 7.4.2
+      - 7.5.2
+    Type: String
+    Default: 7.5.2
+  LogstashVersion:
+    Description: Logstash Version
+    AllowedValues:
+      - 6.5.3
+      - 6.5.4
+      - 6.6.2
+      - 6.8.0
+      - 7.1.1
+      - 7.4.2
+      - 7.5.2
+    Type: String
+    Default: 7.5.2
+  SandpitInstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: i3.xlarge
+    AllowedValues:
+    - i3.large
+    - i3.xlarge
+    - i3.2xlarge
+    - r4.large
+    - r4.xlarge
+    - r4.2xlarge
+    ConstraintDescription: must be a valid EC2 instance type
+  SandpitSubnetId:
+    Description: Sandpit Subnet
+    Type: String
+    Default: "subnet-07965b4bcee131e6a"
+  SandpitGB:
+    Description: Elastic Storage
+    Type: String
+    Default: 50
+    AllowedValues:
+    - 50
+  ElasticPassword:
+    Description: Elastic main admin password
+    Type: String
+    Default: "Sandpit01"
+    NoEcho: true
+  KibanaPassword:
+    Description: Kibana internal user password
+    Type: String
+    Default: "Sandpit01"
+    NoEcho: true
+  LogstashPassword:
+    Description: Logstash internal user password
+    Type: String
+    Default: "Sandpit01"
+    NoEcho: true
+  BeatsSystemPassword:
+    Description: Beats_system internal user password
+    Type: String
+    Default: "Sandpit01"
+    NoEcho: true
+  SslPfxLink:
+    Description: SSL packages web cert url 
+    Type: String
+    Default: "http://packagesweb.tattsgroup.com/Applications/lotteries/elasticstack/certificates/LOTT-LPS-ELK-AWS-ENI-SP-Cert.pfx"
+  SslPfxPw:
+    Description: SSL packages web cert url password 
+    Type: String
+    Default: "Password1"
+    NoEcho: true
+  ElasticCaPwd:
+    Description: Password for Elastic CA for this deployment 
+    Type: String
+    Default: "Password1"
+    NoEcho: true
+  EndpointAccount:
+    Description: The ARN of the aws account 
+    Type: String
+    Default: "arn:aws:iam::034742451100:root"
+
+Resources:
+  elasticsearchSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub
+        - ${CFStackName}-Elasticsearch-sg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      GroupDescription: LPS Elasticsearch Security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 10.0.0.0/8
+        Description: "Developer ssh port"
+      - IpProtocol: tcp
+        FromPort: 9201
+        ToPort: 9201
+        CidrIp: 10.174.20.0/22
+        Description: "Elastic Search API endpoint for Internal VPC"
+      - IpProtocol: tcp
+        FromPort: 9300
+        ToPort: 9400
+        CidrIp: 10.174.20.0/22
+        Description: "Elastic Search transport for Internal VPC"
+      - IpProtocol: icmp
+        FromPort: 8
+        ToPort: 0
+        CidrIp: 10.0.191.60/32
+        Description: "Icinga Ping Test"
+      Tags:
+        - Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-elasticsearch-sg
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+      VpcId: !Ref VpcId
+  kibanaSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub
+        - ${CFStackName}-Kibana
+        - { CFStackName: !Ref 'AWS::StackName' }
+      GroupDescription: LPS Kibana Security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 10.0.0.0/8
+        Description: "Developer ssh port"
+      - IpProtocol: tcp
+        FromPort: 5601
+        ToPort: 5601
+        CidrIp: 10.174.20.0/22
+        Description: "Kibana Dashboard End Point Internal VPC"
+      - IpProtocol: tcp
+        FromPort: 10933
+        ToPort: 10933
+        CidrIp: 10.27.197.10/32
+        Description: "Primary Octopus Tentacle port"
+      - IpProtocol: tcp
+        FromPort: 10933
+        ToPort: 10933
+        CidrIp: 10.27.69.10/32
+        Description: "Secondary Octopus Tentacle port"
+      Tags:
+        - Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-sg
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+      VpcId: !Ref VpcId
+  logstashSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub
+        - ${CFStackName}-Logstash
+        - { CFStackName: !Ref 'AWS::StackName' }
+      GroupDescription: LPS Logstash Security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 10.0.0.0/8
+        Description: "Developer ssh port"
+      - IpProtocol: tcp
+        FromPort: 9600
+        ToPort: 9600
+        CidrIp: 10.172.28.0/22
+        Description: "API Endpoint for logstash for Internal VPC"
+      - IpProtocol: tcp
+        FromPort: 5040
+        ToPort: 5060
+        CidrIp: 10.0.0.0/8
+        Description: "File Beat ingestion port range"
+      - IpProtocol: tcp
+        FromPort: 6040
+        ToPort: 6060
+        CidrIp: 10.0.0.0/8
+        Description: "Json ingestion port range"
+      - IpProtocol: tcp
+        FromPort: 10933
+        ToPort: 10933
+        CidrIp: 10.27.197.10/32
+        Description: "Primary Octopus Tentacle port"
+      - IpProtocol: tcp
+        FromPort: 10933
+        ToPort: 10933
+        CidrIp: 10.27.69.10/32
+        Description: "Secondary Octopus Tentacle port"
+      - IpProtocol: icmp
+        FromPort: 8
+        ToPort: 0
+        CidrIp: 10.0.191.60/32
+        Description: "Icinga Ping Test"
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-logstash-sg
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+      VpcId: !Ref VpcId
+
+  SandpitSAEC2:
+    Type: AWS::EC2::Instance
+    Properties: 
+      BlockDeviceMappings:
+        -
+          DeviceName: /dev/xvdb
+          Ebs: 
+            VolumeType: gp2
+            Encrypted: True
+            VolumeSize: !Ref SandpitGB
+            DeleteOnTermination: True
+        - 
+          DeviceName: /dev/sdi
+          Ebs:
+            VolumeType: gp2
+            Encrypted: true
+            DeleteOnTermination: True
+            VolumeSize: !Ref SandpitGB
+      IamInstanceProfile: "iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+      ImageId: "ami-0119aa4d67e59007c"
+      InstanceType: !Ref SandpitInstanceType
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref elasticsearchSG
+        - !Ref kibanaSG
+        - !Ref logstashSG
+      SubnetId: !Ref SandpitSubnetId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-SandpitSAEC2-instance
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "Start=08:00|mon-fri;Stop=18:00|mon-fri;Override=off"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "es_cluster"
+          Value: !Ref 'AWS::StackName'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -x
+          # Log everything
+          exec 1>/root/lps-userdata-log.log 2>&1
+
+          # AL2 specific preperation commands
+          sudo yum update -y
+          # sudo reboot
+
+          # Do some chef pre-work
+          /bin/mkdir -p /etc/chef
+          /bin/mkdir -p /var/log/chef
+          chmod 755 /etc/chef /var/log/chef
+
+          # Create mergeOverrides python script
+          cat > "/tmp/mergeOverrides.py" << EOF
+          import json
+          obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Logstash","ElasticStack.Kibana","ElasticStack.Sandpit"]}}}')
+          obj['run_list']=[]
+          obj['run_list'].append('role[lotteries_aws_es7_sandpit]')
+          obj['run_list'].append('recipe[cb_lot_aws_icinga2::client]')
+          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "LogstashVersion": "${LogstashVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
+          obj.update(jsonkeys)
+          with open('/etc/chef/chefOverrides.json', 'w+') as f:
+            f.write(json.dumps(obj,indent=4))
+          EOF
+
+          # Create client.rb
+          cat > "/etc/chef/client.rb" << EOF
+          log_location            '/var/log/chef/chef.log'
+          chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+          rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+          validation_client_name  'tattsgroup-validator'
+          validation_key          '/etc/chef/tattsgroup-validator.pem'
+          ssl_verify_mode         :verify_none
+          environment             '${ChefEnvironment}'
+          json_attribs            '/etc/chef/chefOverrides.json'
+          node_name               '${!HOSTNAME}'
+          exit_status             :enabled
+          EOF
+          chmod 644 /etc/chef/client.rb
+
+          # Create knife.rb
+          cat > "/etc/chef/knife.rb" << EOF
+          log_level       :debug
+          log_location    '/var/log/knife.log'
+          client_key      '/etc/chef/client.pem'
+          validation_client_name  'tattsgroup-validator'
+          validation_key  '/etc/chef/tattsgroup-validator.pem'
+          chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+          trusted_certs_dir       '/etc/chef/trusted_certs'
+          ssl_verify_mode :verify_none
+          node_name       '${!HOSTNAME}'
+          EOF
+          chmod 644 /etc/chef/knife.rb
+
+          # Download Chef pem file
+          wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+          chmod 644 /etc/chef/tattsgroup-validator.pem
+         
+          # Setup chefOverrides.json
+          python /tmp/mergeOverrides.py
+          rm -f /tmp/mergeOverrides.py
+
+          # Prepare instance store volume - New Way - Moved to cookbook resrouce.
+          #lsblk
+          #mkfs -t xfs /dev/nvme0n1
+          #mkdir -p /data/elastic
+          #mount /dev/nvme0n1 /data/elastic
+          #cp /etc/fstab /etc/fstab.orig
+          #uuid=`blkid | grep nvme0n1 | awk '{print $2}' |  sed 's/"//g'`
+          #echo "$uuid /data/elastic        xfs        defaults,nofail        0 2" >> /etc/fstab
+
+          # Create the persistent queue PV/VG/LV for easy future manipulation
+          mkdir -p /data/logstash
+          pvcreate /dev/xvdi
+          pvs
+          vgcreate logstashdatavg /dev/xvdi
+          vgs
+          lvcreate -l 100%VG -n logstashdatalv logstashdatavg
+          lvs
+          mkfs.xfs /dev/logstashdatavg/logstashdatalv
+          mount /dev/logstashdatavg/logstashdatalv /data/logstash
+          mkdir -p /data/logstash/queue
+
+          # permanently add new file system to fstab 
+          uuid=`blkid | grep logstashdatavg | awk '{print $2}' |  sed 's/"//g'`
+          echo "$uuid /data/logstash        xfs        defaults        0 0" >> /etc/fstab
+
+          # Get chef rpm and install
+          wget http://packagesweb.tattsgroup.com/packages/applications/chef-12.22.3-1.el7.x86_64.rpm -O /tmp/chef-12.22.3-1.el7.x86_64.rpm
+          rpm -Uvh /tmp/chef-12.22.3-1.el7.x86_64.rpm
+          rm -f /tmp/chef-12.22.3-1.el7.x86_64.rpm
+
+          # Additional linux extras
+          amazon-linux-extras install mono
+          #yum install yum-utils
+          #rpm --import "http://keyserver.ubuntu.com/pks/lookup?op=get&search=0x3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF"
+          #yum-config-manager --enable http://download.mono-project.com/repo/centos/
+          #wget http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/Packages/l/libpng15-1.5.30-1.fc28.x86_64.rpm - command doesnt work and currently not needed
+          #yum install -y mono-complete
+
+          # Initiate first chef run
+          chef-client 
+
+          ##
+          ## Elasticsearch password configuration
+          ## Set on Kibana hosts to avoid too much pollution at first from failed commands
+          ## Have to be changed for a better solution
+          ## 
+
+          # wait until elasticsearch is properly started
+          #echo "Wait 30sec until elasticsearch is properly started"
+          #sleep 30
+
+  KibanaInternalLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupName: !Sub
+        - ${CFStackName}-Kibana-ELB
+        - { CFStackName: !Ref 'AWS::StackName' }
+      GroupDescription: Allow Kibana users to access internal ELB
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 10.0.0.0/8
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-alb-sg
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  KibanaListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Certificates:
+      - CertificateArn: "arn:aws:acm:ap-southeast-2:194141084398:certificate/a0179811-f329-4c93-a40a-dceeb0699dbf"
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: 
+          Ref: KibanaTargetGroup
+      LoadBalancerArn:
+        Ref: KibanaApplicationLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+  KibanaApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub
+        - ${CFStackName}-Kibana-alb
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Scheme: internal
+      Subnets: !Ref VpcSubnets
+      SecurityGroups:
+        - Ref: KibanaInternalLoadBalancerSecurityGroup
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-alb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  KibanaTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 15
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTPS
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: '200,302'
+      Name: !Sub
+        - ${CFStackName}-kib-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5601
+      Protocol: HTTPS
+      TargetType: instance 
+      VpcId: !Ref VpcId
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+        - Key: slow_start.duration_seconds
+          Value: 30
+        - Key: stickiness.enabled
+          Value: true
+        - Key: stickiness.lb_cookie.duration_seconds
+          Value: 28800
+        - Key: stickiness.type
+          Value: lb_cookie
+      Targets:
+        - Id: !Ref SandpitSAEC2
+          Port: 5601
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+
+  ElasticInternalLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupName: !Sub
+        - ${CFStackName}-Elastic-ELB
+        - { CFStackName: !Ref 'AWS::StackName' }
+      GroupDescription: Allow Filebeat monitoring to access internal ELB
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 10.0.0.0/8
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-Elastic-alb-sg
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  ElasticListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Certificates:
+      - CertificateArn: "arn:aws:acm:ap-southeast-2:194141084398:certificate/853438fc-ac10-4c00-9c52-9e3993299a46"
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: 
+          Ref: ElasticTargetGroup
+      LoadBalancerArn:
+        Ref: ElasticApplicationLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+  ElasticApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub
+        - ${CFStackName}-Elastic-alb
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Scheme: internal
+      Subnets: !Ref VpcSubnets
+      SecurityGroups:
+        - Ref: ElasticInternalLoadBalancerSecurityGroup
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-elastic-alb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  ElasticTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 15
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTPS
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: '200,302'
+      Name: !Sub
+        - ${CFStackName}-ela-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 9201
+      Protocol: HTTPS
+      TargetType: instance
+      VpcId: !Ref VpcId
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+        - Key: slow_start.duration_seconds
+          Value: 30
+        - Key: stickiness.enabled
+          Value: true
+        - Key: stickiness.lb_cookie.duration_seconds
+          Value: 28800
+        - Key: stickiness.type
+          Value: lb_cookie
+      Targets:
+        - Id: !Ref SandpitSAEC2
+          Port: 9201
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-elastic-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+
+  LogstashTheLottAPIListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashLottTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5048
+      Protocol: TCP
+  LogstashAsgardListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashAsgardTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5046
+      Protocol: TCP
+  LogstashAEMListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashAEMTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5050
+      Protocol: TCP
+  LogstashCLSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashCLSTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5049
+      Protocol: TCP
+  LogstashCONListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashCONTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5040
+      Protocol: TCP
+  LogstashNetworkLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub
+        - ${CFStackName}-Logstash-nlb
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Scheme: internal
+      Type: network
+      Subnets: !Ref VpcSubnets
+      LoadBalancerAttributes:
+        - Key: "load_balancing.cross_zone.enabled"
+          Value: "true"
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-logstash-nlb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashLottTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-lot-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5048
+      Protocol: TCP
+      TargetType: instance
+      Targets: 
+        - Id: !Ref SandpitSAEC2
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashAsgardTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-asg-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5046
+      Protocol: TCP
+      TargetType: instance
+      Targets: 
+        - Id: !Ref SandpitSAEC2
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashAEMTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-aem-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5050
+      Protocol: TCP
+      TargetType: instance
+      Targets: 
+        - Id: !Ref SandpitSAEC2
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashCLSTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-cls-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5049
+      Protocol: TCP
+      TargetType: instance
+      Targets: 
+        - Id: !Ref SandpitSAEC2
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashCONTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-con-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5040
+      Protocol: TCP
+      TargetType: instance
+      Targets: 
+        - Id: !Ref SandpitSAEC2
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+          
+  LogstashEndpointService:
+    Type: AWS::EC2::VPCEndpointService
+    Properties:
+      AcceptanceRequired: false
+      NetworkLoadBalancerArns:
+        -  !Ref LogstashNetworkLoadBalancer
+          
+  LogstashEndpointServicePermissions:
+    Type: AWS::EC2::VPCEndpointServicePermissions
+    Properties:
+      AllowedPrincipals:
+        -  !Ref EndpointAccount
+      ServiceId: !Ref 'LogstashEndpointService'
