@@ -23,6 +23,7 @@ Metadata:
           - SandpitSubnetId
           - LogstashPipeline
           - FilebeatPipeline
+          - MetricbeatPipeline
           - FilebeatVersion
       - Label:
           default: Elastic Stack storage
@@ -146,6 +147,13 @@ Parameters:
     - all_pipelines
   FilebeatPipeline:
     Description: Filebeat var
+    Type: String
+    Default: "example"
+    AllowedValues:
+    - example
+    - test
+  MetricbeatPipeline:
+    Description: Metricbeat var
     Type: String
     Default: "example"
     AllowedValues:
