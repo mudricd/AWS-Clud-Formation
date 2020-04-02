@@ -19,11 +19,11 @@ Metadata:
           - ElasticVersion
           - KibanaVersion
           - LogstashVersion
-          - FilebeatVersion
           - SandpitInstanceType
           - SandpitSubnetId
           - LogstashPipeline
           - FilebeatPipeline
+          - FilebeatVersion
       - Label:
           default: Elastic Stack storage
         Parameters:
@@ -64,11 +64,9 @@ Parameters:
   ChefEnvironment:
     Description: Name of Chef Environment
     AllowedValues:
-      - AWS-Production
-      - AWS-NonProduction
-      - AWS-PPD
+      - AWS-Sandpit
     Type: String
-    Default: AWS-NonProduction
+    Default: AWS-Sandpit
   ElasticVersion:
     Description: Elastic Version
     AllowedValues:
@@ -375,6 +373,8 @@ Resources:
           Value: !Ref ChefEnvironment
         - Key: "es_cluster"
           Value: !Ref 'AWS::StackName'
+        - Key: "es_type"
+          Value: "Sandpit"
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -x
@@ -399,6 +399,7 @@ Resources:
           obj['run_list'].append('recipe[cb_lot_logstash_pipelines::${LogstashPipeline}]')
           obj['run_list'].append('recipe[cb_lot_filebeat::${FilebeatPipeline}]')
           obj['run_list'].append('recipe[cb_lot_aws_icinga2::client]')
+          obj['run_list'].append('recipe[cb_lot_metricbeat::${MetricbeatPipeline}]')
           jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "LogstashVersion": "${LogstashVersion}", "FilebeatVersion": "${FilebeatVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
           obj.update(jsonkeys)
           with open('/etc/chef/chefOverrides.json', 'w+') as f:
