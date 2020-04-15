@@ -24,6 +24,9 @@ Metadata:
           - LogstashPipeline
           - FilebeatPipeline
           - FilebeatVersion
+          - MetricbeatPipeline
+          - MetricbeatVersion
+          
       - Label:
           default: Elastic Stack storage
         Parameters:
@@ -115,6 +118,18 @@ Parameters:
       - 7.5.2
     Type: String
     Default: 7.5.2
+  MetricbeatVersion:
+    Description: Metricbeat Version
+    AllowedValues:
+      - 6.5.3
+      - 6.5.4
+      - 6.6.2
+      - 6.8.0
+      - 7.1.1
+      - 7.4.2
+      - 7.5.2
+    Type: String
+    Default: 7.5.2
   SandpitInstanceType:
     Description: EC2 instance type
     Type: String
@@ -146,6 +161,13 @@ Parameters:
     - all_pipelines
   FilebeatPipeline:
     Description: Filebeat var
+    Type: String
+    Default: "example"
+    AllowedValues:
+    - example
+    - test
+  MetricbeatPipeline:
+    Description: Metricbeat var
     Type: String
     Default: "example"
     AllowedValues:
@@ -398,8 +420,9 @@ Resources:
           obj['run_list'].append('role[lotteries_aws_es7_sandpit]')
           obj['run_list'].append('recipe[cb_lot_logstash_pipelines::${LogstashPipeline}]')
           obj['run_list'].append('recipe[cb_lot_filebeat::${FilebeatPipeline}]')
+          obj['run_list'].append('recipe[cb_lot_metricbeat::${MetricbeatPipeline}]')
           obj['run_list'].append('recipe[cb_lot_aws_icinga2::client]')
-          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "LogstashVersion": "${LogstashVersion}", "FilebeatVersion": "${FilebeatVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
+          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "LogstashVersion": "${LogstashVersion}", "FilebeatVersion": "${FilebeatVersion}", "MetricbeatVersion": "${MetricbeatVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
           obj.update(jsonkeys)
           with open('/etc/chef/chefOverrides.json', 'w+') as f:
             f.write(json.dumps(obj,indent=4))
