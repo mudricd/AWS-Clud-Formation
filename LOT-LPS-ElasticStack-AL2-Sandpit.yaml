@@ -13,20 +13,21 @@ Metadata:
           default: Chef automation parameters
         Parameters:
           - ChefEnvironment
+          - Shutdown
       - Label:
           default: Elastic Stack parameters
         Parameters:
           - ElasticVersion
           - KibanaVersion
           - LogstashVersion
+          - FilebeatVersion
+          - MetricbeatVersion
           - SandpitInstanceType
           - SandpitSubnetId
           - LogstashPipeline
-          - FilebeatPipeline
-          - FilebeatVersion
-          - MetricbeatPipeline
-          - MetricbeatVersion
-          
+          - FilebeatConfig
+          - MetricbeatConfig
+          - KibanaConfig
       - Label:
           default: Elastic Stack storage
         Parameters:
@@ -70,6 +71,13 @@ Parameters:
       - AWS-Sandpit
     Type: String
     Default: AWS-Sandpit
+  Shutdown:
+    Description: Yes or no to nightly shutdown
+    AllowedValues:
+      - yes
+      - no
+    Type: String
+    Default: yes
   ElasticVersion:
     Description: Elastic Version
     AllowedValues:
@@ -117,7 +125,7 @@ Parameters:
       - 7.4.2
       - 7.5.2
     Type: String
-    Default: 7.5.2
+    Default: 6.8.0
   MetricbeatVersion:
     Description: Metricbeat Version
     AllowedValues:
@@ -157,22 +165,33 @@ Parameters:
     Type: String
     Default: "example"
     AllowedValues:
+    - thelottapi
     - example
     - all_pipelines
-  FilebeatPipeline:
+  FilebeatConfig:
     Description: Filebeat var
     Type: String
     Default: "example"
     AllowedValues:
+    - thelottapi
     - example
     - test
-  MetricbeatPipeline:
+  MetricbeatConfig:
     Description: Metricbeat var
     Type: String
     Default: "example"
     AllowedValues:
+    - thelottapi
     - example
     - test
+  KibanaConfig:
+    Description: Kibana config
+    Type: String
+    Default: "all_objects"
+    AllowedValues:
+    - thelottapi
+    - example
+    - all_objects
   ElasticPassword:
     Description: Elastic main admin password
     Type: String
@@ -196,7 +215,7 @@ Parameters:
   SslPfxLink:
     Description: SSL packages web cert url 
     Type: String
-    Default: "http://packagesweb.tattsgroup.com/Applications/lotteries/elasticstack/certificates/LOTT-LPS-ELK-AWS-ENI-SP-Cert.pfx"
+    Default: "http://packagesweb.tattsgroup.com/Applications/lotteries/elasticstack/certificates/LOTT-LPS-ELK-7-AWS-Sandpit.pfx"
   SslPfxPw:
     Description: SSL packages web cert url password 
     Type: String
@@ -252,6 +271,8 @@ Resources:
           Value: "LAPS"
         - Key: "Environment"
           Value: !Ref ChefEnvironment
+        - Key: "Shutdown"
+          Value: !Ref Shutdown
       VpcId: !Ref VpcId
   kibanaSG:
     Type: AWS::EC2::SecurityGroup
@@ -395,8 +416,8 @@ Resources:
           Value: !Ref ChefEnvironment
         - Key: "es_cluster"
           Value: !Ref 'AWS::StackName'
-        - Key: "es_type"
-          Value: "Sandpit"
+        - Key: "es_node_type"
+          Value: "sandpit"
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -x
@@ -419,9 +440,10 @@ Resources:
           obj['run_list']=[]
           obj['run_list'].append('role[lotteries_aws_es7_sandpit]')
           obj['run_list'].append('recipe[cb_lot_logstash_pipelines::${LogstashPipeline}]')
-          obj['run_list'].append('recipe[cb_lot_filebeat::${FilebeatPipeline}]')
-          obj['run_list'].append('recipe[cb_lot_metricbeat::${MetricbeatPipeline}]')
+          obj['run_list'].append('recipe[cb_lot_filebeat::${FilebeatConfig}]')
+          obj['run_list'].append('recipe[cb_lot_metricbeat::${MetricbeatConfig}]')
           obj['run_list'].append('recipe[cb_lot_aws_icinga2::client]')
+          obj['run_list'].append('recipe[cb_lot_kibana_objects::${KibanaConfig}]')
           jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "LogstashVersion": "${LogstashVersion}", "FilebeatVersion": "${FilebeatVersion}", "MetricbeatVersion": "${MetricbeatVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
           obj.update(jsonkeys)
           with open('/etc/chef/chefOverrides.json', 'w+') as f:
