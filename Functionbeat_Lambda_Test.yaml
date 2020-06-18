@@ -1,0 +1,109 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Resources": {
+    "fnbcloudwatch": {
+      "Properties": {
+        "Code": {
+          "S3Bucket": "lps-functionbeat-dev",
+          "S3Key": "cloudwatch_function.zip"
+        },
+        "Description": "lambda function for cloudwatch logs",
+        "Environment": {
+          "Variables": {
+            "BEAT_STRICT_PERMS": "false",
+            "ENABLED_FUNCTIONS": "cloudwatch"
+          }
+        },
+        "FunctionName": "cloudwatch",
+        "Handler": "functionbeat-aws",
+        "MemorySize": 128,
+        "ReservedConcurrentExecutions": 5,
+        "Role": "arn:aws:iam::194141084398:role/ElasticstackLambdaEC2-StartStop",
+        "Runtime": "go1.x",
+        "Timeout": 3,
+        "VpcConfig": {
+          "SecurityGroupIds": [
+            "sg-0e82672cbcf67b478"
+          ],
+          "SubnetIds": [
+            "subnet-014214c87e997c42c",
+            "subnet-05e699e14e816fca4",
+            "subnet-069955423158aadb0",
+            "subnet-0776d1ae6314f5fca",
+            "subnet-07965b4bcee131e6a",
+            "subnet-0e0c1720f9e33251c"
+          ]
+        }
+      },
+      "Type": "AWS::Lambda::Function"
+    },
+    "fnbcloudwatchLogGroup": {
+      "Properties": {
+        "LogGroupName": "/aws/lambda/cloudwatch"
+      },
+      "Type": "AWS::Logs::LogGroup"
+    },
+    "fnbcloudwatchPermission0": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "fnbcloudwatch",
+            "Arn"
+          ]
+        },
+        "Principal": {
+          "Fn::Join": [
+            "",
+            [
+              "logs.",
+              {
+                "Ref": "AWS::Region"
+              },
+              ".",
+              {
+                "Ref": "AWS::URLSuffix"
+              }
+            ]
+          ]
+        },
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":logs:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":log-group:",
+              "Test-LotteriesBaseline-FlowLogs",
+              ":*"
+            ]
+          ]
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "fnbcloudwatchSFTestLotteriesBaselineFlowLogs": {
+      "Properties": {
+        "DestinationArn": {
+          "Fn::GetAtt": [
+            "fnbcloudwatch",
+            "Arn"
+          ]
+        },
+        "FilterPattern": "",
+        "LogGroupName": "Test-LotteriesBaseline-FlowLogs"
+      },
+      "Type": "AWS::Logs::SubscriptionFilter"
+    }
+  }
+}
