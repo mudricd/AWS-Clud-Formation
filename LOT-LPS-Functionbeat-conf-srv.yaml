@@ -1,13 +1,9 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: AutoScaling CF
+Description: Functionbeat configuration server CF
 
 Metadata:
   'AWS::CloudFormation::Interface':
     ParameterGroups:
-      - Label:
-          default: Elastic parameters
-        Parameters:
-          - FunctionbeatVersion
       - Label:
           default: Chef automation parameters
         Parameters:
@@ -44,13 +40,6 @@ Parameters:
     AllowedValues:
       - t2.micro
       - t2.medium
-  FunctionbeatVersion:
-    Description: Elastic Version
-    AllowedValues:
-      - 7.4.2
-      - 7.5.2
-    Type: String
-    Default: 7.5.2
   ChefEnvironment:
     Description: Name of Chef Environment
     AllowedValues:
@@ -131,7 +120,7 @@ Resources:
                 obj['run_list']=[]
                 obj['run_list'].append('recipe[cb_lot_functionbeat::functionbeat-conf]')
                 obj['run_list'].append('recipe[cb_lot_aws_icinga2::client]')
-                jsonkeys = {"ClusterName": "${AWS::StackName}", "FunctionbeatVersion": "${FunctionbeatVersion}"}
+                jsonkeys = {"ClusterName": "${AWS::StackName}"}
                 obj.update(jsonkeys)
                 with open('/etc/chef/chefOverrides.json', 'w+') as f:
                   f.write(json.dumps(obj,indent=4))

@@ -47,7 +47,7 @@ Metadata:
       - Label:
           default: Elastic CA 
         Parameters:
-          - ElasticCaPwd
+          - 
       - Label:
           default: Endpoint Service Configuration
         Parameters:
