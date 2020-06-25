@@ -107,10 +107,10 @@ Resources:
             Value: !Ref ChefEnvironment
 
   
-    LaunchTemp:
+    LaunchTempFunctionbeat:
       Type: AWS::EC2::LaunchTemplate
       Properties:
-        LaunchTemplateName: LaunchTemp
+        LaunchTemplateName: LaunchTempFunctionbeat
         LaunchTemplateData:
           ImageId: !Ref ImageId
           InstanceType: !Ref InstanceType
@@ -209,10 +209,10 @@ Resources:
         Properties:
           IamInstanceProfile: iam-tatts-lotteries-test-IAM-Role-Functionbeat-EC2-RootInstanceProfile-10LG1CQS4A56N
           LaunchTemplate: 
-            LaunchTemplateId: !Ref LaunchTemp
+            LaunchTemplateId: !Ref LaunchTempFunctionbeat
             Version:
               Fn::GetAtt:
-                [ "LaunchTemp", "LatestVersionNumber" ]     
+                [ "LaunchTempFunctionbeat", "LatestVersionNumber" ]     
           NetworkInterfaces:
            -
               Description: !Sub
