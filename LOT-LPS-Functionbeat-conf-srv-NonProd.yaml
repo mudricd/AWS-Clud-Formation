@@ -197,7 +197,7 @@ Resources:
     Server1:
         Type: AWS::EC2::Instance
         Properties:
-          IamInstanceProfile: iam-tatts-lotteries-test-IAM-Role-Functionbeat-EC2-RootInstanceProfile-10LG1CQS4A56N
+          IamInstanceProfile: arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-IAM-Role-Functionbeat-EC2-RootInstanceProfile-1DZY9C7MKB6NX
           LaunchTemplate: 
             LaunchTemplateId: !Ref LaunchTempFunctionbeat
             Version:
