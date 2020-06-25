@@ -13,7 +13,6 @@ Metadata:
           default: Elastic Stack internal users initial passwords
         Parameters:
           - NonprodElasticPassword
-          - ProdElasticPassword
           - KibanaPassword
           - LogstashPassword
           - ElasticCaPwd
@@ -60,11 +59,6 @@ Parameters:
     Description: Nonprod elastic main admin password
     Type: String
     Default: "TattsGr0up"
-    NoEcho: true
-  ProdElasticPassword:
-    Description: Nonprod elastic main admin password
-    Type: String
-    Default: "Harrison"
     NoEcho: true
   ElasticCaPwd:
     Description: Password for Elastic CA for this deployment 
@@ -145,7 +139,7 @@ Resources:
                 obj['run_list']=[]
                 obj['run_list'].append('recipe[cb_lot_functionbeat::functionbeat-nonprod]')
                 obj['run_list'].append('recipe[cb_lot_aws_icinga2::client]')
-                jsonkeys = {"ClusterName": "${AWS::StackName}","NonprodElasticPassword": "${NonprodElasticPassword}","ProdElasticPassword": "${ProdElasticPassword}","ElasticCaPwd": "${ElasticCaPwd}"}
+                jsonkeys = {"ClusterName": "${AWS::StackName}","NonprodElasticPassword": "${NonprodElasticPassword}","ElasticCaPwd": "${ElasticCaPwd}"}
                 obj.update(jsonkeys)
                 with open('/etc/chef/chefOverrides.json', 'w+') as f:
                   f.write(json.dumps(obj,indent=4))
