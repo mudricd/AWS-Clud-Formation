@@ -3,6 +3,8 @@ Resources:
   ElasticstackFunctionbeatLambdaRole:
     Type: 'AWS::IAM::Role'
     Properties:
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaENIManagementAccess'
       Path: /
       RoleName: Functionbeat-role
       AssumeRolePolicyDocument:
@@ -27,13 +29,24 @@ Resources:
                 - 's3:DeleteObject'
                 - 's3:AbortMultipartUpload'
                 - 's3:ListMultipartUploadParts'
+                - 'lambda:AddPermission'
+                - 'lambda:CreateFunction'
+                - 'lambda:DeleteFunction'
+                - 'lambda:GetFunction'
+                - 'lambda:GetFunctionConfiguration'
+                - 'lambda:PutFunctionConcurrency'
+                - 'lambda:RemovePermission'
+                - 'lambda:UpdateFunctionCode'
+                - 'lambda:UpdateFunctionConfiguration'
+                - 'lambda:InvokeFunction'
                 - 'logs:CreateLogGroup'
+                - 'logs:DeleteLogGroup'
+                - 'logs:DeleteSubscriptionFilter'
+                - 'logs:DescribeLogGroups'
+                - 'logs:PutSubscriptionFilter'
                 - 'logs:CreateLogStream'
                 - 'logs:PutLogEvents'
-                - 'lambda:InvokeFunction'
                 - 'ec2:DescribeNetworkInterfaces'
-                - 'ec2:CreateNetworkInterface'
-                - 'ec2:DeleteNetworkInterface'
                 - 'ec2:Start*'
                 - 'ec2:Stop*'
                 - 'ec2:Describe*'

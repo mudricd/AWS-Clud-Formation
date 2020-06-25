@@ -1,0 +1,236 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Functionbeat configuration server CF
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: Chef automation parameters
+        Parameters:
+          - ChefEnvironment
+          - Shutdown
+      - Label:
+          default: Elastic Stack internal users initial passwords
+        Parameters:
+          - SandpitElasticPassword
+          - NonprodElasticPassword
+          - ProdElasticPassword
+          - KibanaPassword
+          - LogstashPassword
+          - ElasticCaPwd
+# P A R A M E T E R S
+Parameters:
+  MyKeyName:
+    Description: Name of an existing EC2 KeyPair
+    Type: "AWS::EC2::KeyPair::KeyName"
+    Default: Dragan_AWS_key
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  VpcId:
+    Description: ID of the VPC onto which to launch the application
+    Type: AWS::EC2::VPC::Id
+    Default: "vpc-037080e34cae35ead"
+  VpcSubnets:
+    Description: The 3 subnets this Stack will be using.
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Default: "subnet-014214c87e997c42c,subnet-07965b4bcee131e6a,subnet-0776d1ae6314f5fca"
+  ImageId:
+    Description: EC2 image id
+    Type: String
+    Default: ami-0119aa4d67e59007c
+    AllowedValues:
+      - ami-0119aa4d67e59007c
+      - ami-05b0d50be1ff1f6ae
+      - ami-0975ce566eec139c3
+      - ami-0328aad0f6218c429
+  InstanceType:
+    Description: Type of EC2 instance
+    Type: String
+    Default: t2.medium
+    AllowedValues:
+      - t2.micro
+      - t2.medium
+  ChefEnvironment:
+    Description: Name of Chef Environment
+    AllowedValues:
+      - AWS-Sandpit
+    Type: String
+    Default: AWS-Sandpit
+  SandpitElasticPassword:
+    Description: Sandpit elastic main admin password
+    Type: String
+    Default: "Sandpit01"
+    NoEcho: true
+  NonprodElasticPassword:
+    Description: Nonprod elastic main admin password
+    Type: String
+    Default: "TattsGr0up"
+    NoEcho: true
+  ProdElasticPassword:
+    Description: Nonprod elastic main admin password
+    Type: String
+    Default: "Harrison"
+    NoEcho: true
+  ElasticCaPwd:
+    Description: Password for Elastic CA for this deployment 
+    Type: String
+    Default: "Password1"
+    NoEcho: true
+
+# R E S O U R C E S
+
+Resources:
+    SecGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Template securty group
+        GroupName: !Sub
+        - ${CFormationName}-FunctionbeatSG
+        - { CFormationName: !Ref 'AWS::StackName' }
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: 0.0.0.0/0
+            Description: SSH
+          - IpProtocol: icmp
+            Description: ICMP
+            FromPort: 8
+            ToPort: -1
+            CidrIp: 0.0.0.0/0
+        VpcId: !Ref VpcId
+        Tags:
+          - Key: Name
+            Value: Functionbeat
+          - Key:  OwnerDescription
+            Value: LAPS
+          - Key: Environment
+            Value: !Ref ChefEnvironment
+
+  
+    LaunchTemp:
+      Type: AWS::EC2::LaunchTemplate
+      Properties:
+        LaunchTemplateName: LaunchTemp
+        LaunchTemplateData:
+          ImageId: !Ref ImageId
+          InstanceType: !Ref InstanceType
+          KeyName: !Ref MyKeyName
+          TagSpecifications:
+            -
+              ResourceType: instance
+              Tags:
+                - Key:  OwnerDescription
+                  Value: LAPS
+          UserData:
+            Fn::Base64: !Sub |
+                #!/bin/bash -x
+                cat >> "/root/.ssh/authorized_keys" << EOF
+                ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCanU63ELNFJIjnhDoXNpG4g7gVgsgJrmRA++EfKEKb5mlR7OaXu90bNoroG1ZYbLXNRKvEiZlVx5jMJkWF9Lvk99YwRvAMf1F0A3ik4UmaYSALRLD/agF1e+Ljod/8y20sBezIfsgkDDuv1U3pmGC7khi6WdT5A0WP/kRvX22BAmHHUFNsyXq4maD1YjL5RWTZ+TCqJBcK8w7IPwu5Zj4NxX9dkykwQ1HfM2+E84lI63lsB/GR+bTj7dJm0P3wLAfT9ABXaXzUTiq2bp43V5ZDh/CPRbHF04x2pF9VtPyiyP6pyKfOl4Aeqxs3kIYRm/RgY/+6NPsoweTvE9rHeoUd root@ip-10-174-21-56.tattsgroup.io
+                EOF
+                export AWS_DEFAULT_REGION=ap-southeast-2
+                BEAT_STRICT_PERMS=false
+                ENABLED_FUNCTIONS=cludwatch
+                # Log everything
+                exec 1>/root/lps-userdata-log.log 2>&1
+      
+                # AL2 specific preperation commands
+                sudo yum update -y
+                # sudo reboot
+      
+                # Do some chef pre-work
+                /bin/mkdir -p /etc/chef
+                /bin/mkdir -p /var/log/chef
+                chmod 755 /etc/chef /var/log/chef
+      
+                # Create mergeOverrides python script
+                cat > "/tmp/mergeOverrides.py" << EOF
+                import json
+                obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Logstash","ElasticStack.Kibana","ElasticStack.Sandpit"]}}}')
+                obj['run_list']=[]
+                obj['run_list'].append('recipe[cb_lot_functionbeat::functionbeat-nonprod]')
+                obj['run_list'].append('recipe[cb_lot_aws_icinga2::client]')
+                jsonkeys = {"ClusterName": "${AWS::StackName}","SandpitElasticPassword": "${SandpitElasticPassword}","NonprodElasticPassword": "${NonprodElasticPassword}","ProdElasticPassword": "${ProdElasticPassword}","ElasticCaPwd": "${ElasticCaPwd}"}
+                obj.update(jsonkeys)
+                with open('/etc/chef/chefOverrides.json', 'w+') as f:
+                  f.write(json.dumps(obj,indent=4))
+                EOF
+
+                # Create client.rb
+                cat > "/etc/chef/client.rb" << EOF
+                log_location            '/var/log/chef/chef.log'
+                chef_server_url         'https://chef.tattsgroup.com/organizations/tattsgroup'
+                rubygems_url            'https://artifactory.tattsgroup.com/artifactory/api/gems/external-ruby-mirror/'
+                validation_client_name  'tattsgroup-validator'
+                validation_key          '/etc/chef/tattsgroup-validator.pem'
+                ssl_verify_mode         :verify_none
+                environment             '${ChefEnvironment}'
+                json_attribs            '/etc/chef/chefOverrides.json'
+                node_name               '${!HOSTNAME}'
+                exit_status             :enabled
+                EOF
+                chmod 644 /etc/chef/client.rb
+      
+                # Create knife.rb
+                cat > "/etc/chef/knife.rb" << EOF
+                log_level       :debug
+                log_location    '/var/log/knife.log'
+                client_key      '/etc/chef/client.pem'
+                validation_client_name  'tattsgroup-validator'
+                validation_key  '/etc/chef/tattsgroup-validator.pem'
+                chef_server_url 'https://chef.tattsgroup.com/organizations/tattsgroup'
+                trusted_certs_dir       '/etc/chef/trusted_certs'
+                ssl_verify_mode :verify_none
+                node_name       '${!HOSTNAME}'
+                EOF
+                chmod 644 /etc/chef/knife.rb
+
+                # Download Chef pem file
+                wget http://packagesweb.tattsgroup.com/Resources/chef-client-init/tattsgroup-validator.pem -O /etc/chef/tattsgroup-validator.pem
+                chmod 644 /etc/chef/tattsgroup-validator.pem
+               
+                # Setup chefOverrides.json
+                python /tmp/mergeOverrides.py
+                rm -f /tmp/mergeOverrides.py
+
+                # Get chef rpm and install
+                wget http://packagesweb.tattsgroup.com/packages/applications/chef-12.22.3-1.el7.x86_64.rpm -O /tmp/chef-12.22.3-1.el7.x86_64.rpm
+                rpm -Uvh /tmp/chef-12.22.3-1.el7.x86_64.rpm
+                rm -f /tmp/chef-12.22.3-1.el7.x86_64.rpm
+
+                # Additional linux extras
+                amazon-linux-extras install mono
+      
+                # Initiate first chef run
+                chef-client 
+                      
+    
+    Server1:
+        Type: AWS::EC2::Instance
+        Properties:
+          IamInstanceProfile: iam-tatts-lotteries-test-IAM-Role-Functionbeat-EC2-RootInstanceProfile-10LG1CQS4A56N
+          LaunchTemplate: 
+            LaunchTemplateId: !Ref LaunchTemp
+            Version:
+              Fn::GetAtt:
+                [ "LaunchTemp", "LatestVersionNumber" ]     
+          NetworkInterfaces:
+           -
+              Description: !Sub
+                - ${CFStackName}-Elastic02SB-eni
+                - { CFStackName: !Ref 'AWS::StackName' }
+              GroupSet: 
+                - !GetAtt SecGroup.GroupId
+              DeviceIndex: 0
+              SubnetId: subnet-014214c87e997c42c
+              DeleteOnTermination: True
+          Tags:
+            -
+              Key: Name 
+              Value: Functionbeat_conf_srv
+
+   
+  
+
+  
+
+

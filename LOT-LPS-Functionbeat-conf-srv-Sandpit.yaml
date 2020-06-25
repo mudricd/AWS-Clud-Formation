@@ -9,6 +9,15 @@ Metadata:
         Parameters:
           - ChefEnvironment
           - Shutdown
+      - Label:
+          default: Elastic Stack internal users initial passwords
+        Parameters:
+          - SandpitElasticPassword
+          - NonprodElasticPassword
+          - ProdElasticPassword
+          - KibanaPassword
+          - LogstashPassword
+          - ElasticCaPwd
 # P A R A M E T E R S
 Parameters:
   MyKeyName:
@@ -46,6 +55,26 @@ Parameters:
       - AWS-Sandpit
     Type: String
     Default: AWS-Sandpit
+  SandpitElasticPassword:
+    Description: Sandpit elastic main admin password
+    Type: String
+    Default: "Sandpit01"
+    NoEcho: true
+  NonprodElasticPassword:
+    Description: Nonprod elastic main admin password
+    Type: String
+    Default: "TattsGr0up"
+    NoEcho: true
+  ProdElasticPassword:
+    Description: Nonprod elastic main admin password
+    Type: String
+    Default: "Harrison"
+    NoEcho: true
+  ElasticCaPwd:
+    Description: Password for Elastic CA for this deployment 
+    Type: String
+    Default: "Password1"
+    NoEcho: true
 
 # R E S O U R C E S
 
@@ -120,7 +149,7 @@ Resources:
                 obj['run_list']=[]
                 obj['run_list'].append('recipe[cb_lot_functionbeat::functionbeat-conf]')
                 obj['run_list'].append('recipe[cb_lot_aws_icinga2::client]')
-                jsonkeys = {"ClusterName": "${AWS::StackName}"}
+                jsonkeys = {"ClusterName": "${AWS::StackName}","SandpitElasticPassword": "${SandpitElasticPassword}","NonprodElasticPassword": "${NonprodElasticPassword}","ProdElasticPassword": "${ProdElasticPassword}","ElasticCaPwd": "${ElasticCaPwd}"}
                 obj.update(jsonkeys)
                 with open('/etc/chef/chefOverrides.json', 'w+') as f:
                   f.write(json.dumps(obj,indent=4))
