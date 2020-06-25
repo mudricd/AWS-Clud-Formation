@@ -51,10 +51,10 @@ Parameters:
     Description: Name of Chef Environment
     AllowedValues:
       - AWS-Sandpit
-      - AWS-NonProd
+      - AWS-NonProduction
       - AWS-Prod
     Type: String
-    Default: AWS-NonProd
+    Default: AWS-NonProduction
   NonprodElasticPassword:
     Description: Nonprod elastic main admin password
     Type: String
@@ -197,7 +197,7 @@ Resources:
     Server1:
         Type: AWS::EC2::Instance
         Properties:
-          IamInstanceProfile: arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-IAM-Role-Functionbeat-EC2-RootInstanceProfile-1DZY9C7MKB6NX
+          IamInstanceProfile: iam-lotteries-baseline-test-IAM-Role-Functionbeat-EC2-RootInstanceProfile-1DZY9C7MKB6NX
           LaunchTemplate: 
             LaunchTemplateId: !Ref LaunchTempFunctionbeat
             Version:
