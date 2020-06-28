@@ -63,7 +63,7 @@ Parameters:
   ElasticCaPwd:
     Description: Password for Elastic CA for this deployment 
     Type: String
-    Default: "Password1"
+    Default: "TattsGr0up"
     NoEcho: true
 
 # R E S O U R C E S
