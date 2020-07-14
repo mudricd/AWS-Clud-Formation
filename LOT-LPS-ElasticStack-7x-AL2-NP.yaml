@@ -22,6 +22,7 @@ Metadata:
           - KibanaInstanceType
           - LogstashVersion
           - LogstashInstanceType
+          - ElasticElbDns
       - Label:
           default: Elastic Stack internal users initial passwords
         Parameters:
@@ -100,6 +101,12 @@ Parameters:
     - t2.large
     - t2.xlarge
     - t2.2xlarge
+  ElasticElbDns:
+    Description: DNS for elastic load balancer
+    Type: String
+    Default: "elastic-752-uat-lott.tattsnonprod.com"
+    AllowedValues:
+    - elastic-752-uat-lott.tattsnonprod.com
   ElasticPassword:
     Description: Elastic main admin password
     Type: String
@@ -127,7 +134,7 @@ Parameters:
   ElasticCaPwd:
     Description: Password for Elastic CA for this deployment 
     Type: String
-    Default: "Password1"
+    Default: "TattsGr0up"
     NoEcho: true
 
 Resources:
@@ -275,9 +282,9 @@ Resources:
   ElasticAutoscalingGroup:
     UpdatePolicy: 
       AutoScalingRollingUpdate: 
-        MinInstancesInService: "2"
+        MinInstancesInService: "4"
         MaxBatchSize: "1"
-        PauseTime: "PT20M"
+        PauseTime: "PT10M"
         SuspendProcesses:
           - HealthCheck
           - ReplaceUnhealthy
@@ -298,6 +305,7 @@ Resources:
       DesiredCapacity: '6'
       HealthCheckType: EC2
       HealthCheckGracePeriod: 600
+
       TerminationPolicies:
         - OldestLaunchConfiguration
       Tags: 
@@ -343,6 +351,14 @@ Resources:
         - !Ref elasticsearchSG
       InstanceType: !Ref ElasticsearchInstanceType
       IamInstanceProfile: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+      BlockDeviceMappings:
+        -
+          DeviceName: /dev/xvda
+          Ebs: 
+            VolumeType: gp2
+            Encrypted: True
+            VolumeSize: 8
+            DeleteOnTermination: True
       KeyName: !Ref KeyName
       UserData:
         Fn::Base64: !Sub |
@@ -365,7 +381,9 @@ Resources:
           obj = json.loads('{}')
           obj['run_list']=[]
           obj['run_list'].append('role[lotteries_aws_es7_elasticsearch]')
-          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "ElasticVersion": "${ElasticVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
+          obj['run_list'].append('recipe[cb_lot_kibana_objects::all_objects]')
+          obj['run_list'].append('recipe[cb_lot_metricbeat::metricbeat-elastic-xpack]')
+          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "ElasticVersion": "${ElasticVersion}", "ElasticCaPwd": "${ElasticCaPwd}", "ElasticElbDns": "${ElasticElbDns}"}
           obj.update(jsonkeys)
           with open('/etc/chef/chefOverrides.json', 'w+') as f:
             f.write(json.dumps(obj,indent=4))
@@ -433,7 +451,7 @@ Resources:
       AutoScalingRollingUpdate: 
         MinInstancesInService: "1"
         MaxBatchSize: "1"
-        PauseTime: "PT5M"
+        PauseTime: "PT7M"
         SuspendProcesses:
           - HealthCheck
           - ReplaceUnhealthy
@@ -449,7 +467,7 @@ Resources:
         Fn::GetAZs: ''
       VPCZoneIdentifier: !Ref VpcSubnets
       LaunchConfigurationName:  !Ref KibanaLaunchConfig
-      MinSize: '2'
+      MinSize: '1'
       MaxSize: '2'
       DesiredCapacity: '2'
       HealthCheckType: EC2
@@ -490,7 +508,7 @@ Resources:
           Value: !Ref 'AWS::StackName'
           PropagateAtLaunch: true
         - Key: "es_node_type"
-          Value: "Coord"
+          Value: "kibana"
           PropagateAtLaunch: true
 
   KibanaLaunchConfig:
@@ -502,6 +520,14 @@ Resources:
         - !Ref elasticsearchSG
       InstanceType: !Ref KibanaInstanceType
       IamInstanceProfile: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
+      BlockDeviceMappings:
+        -
+          DeviceName: /dev/xvda
+          Ebs: 
+            VolumeType: gp2
+            Encrypted: True
+            VolumeSize: 8
+            DeleteOnTermination: True
       KeyName: !Ref KeyName
       UserData:
         Fn::Base64: !Sub |
@@ -520,7 +546,10 @@ Resources:
           obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Kibana"]}}}')
           obj['run_list']=[]
           obj['run_list'].append('role[lotteries_aws_es7_kibana]')
-          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
+          obj['run_list'].append('recipe[cb_lot_kibana_objects::all_objects]')
+          obj['run_list'].append('recipe[cb_lot_metricbeat::metricbeat-elastic-xpack]')
+          obj['run_list'].append('recipe[cb_lot_metricbeat::metricbeat-kibana-xpack]')
+          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
           obj.update(jsonkeys)
           with open('/etc/chef/chefOverrides.json', 'w+') as f:
             f.write(json.dumps(obj,indent=4))
@@ -610,6 +639,7 @@ Resources:
         - Ref: LogstashBANKTargetGroup
         - Ref: LogstashCONTargetGroup
         - Ref: LogstashFUSETargetGroup
+        - Ref: LogstashIAMTargetGroup
       TerminationPolicies:
         - NewestInstance
       Tags: 
@@ -640,6 +670,12 @@ Resources:
         - Key: "CF-Stack"
           Value: !Ref 'AWS::StackName'
           PropagateAtLaunch: true
+        - Key: "es_cluster"
+          Value: !Ref 'AWS::StackName'
+          PropagateAtLaunch: true
+        - Key: "es_node_type"
+          Value: "Logstash"
+          PropagateAtLaunch: true
   LogstashLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
@@ -650,6 +686,13 @@ Resources:
       IamInstanceProfile: "arn:aws:iam::194141084398:instance-profile/iam-lotteries-baseline-test-ElasticStackRole-InstanceProfile-2BN2KPDKM5PG"
       KeyName: !Ref KeyName
       BlockDeviceMappings:
+        -
+          DeviceName: /dev/xvda
+          Ebs: 
+            VolumeType: gp2
+            Encrypted: True
+            VolumeSize: 8
+            DeleteOnTermination: True
         - DeviceName: "/dev/sdi"
           Ebs:
             Encrypted: "true"
@@ -687,6 +730,7 @@ Resources:
           obj = json.loads('{"octopus":{"tentacle":{"roles":["ElasticStack.Logstash"]}}}')
           obj['run_list']=[]
           obj['run_list'].append('role[lotteries_aws_es7_logstash]')
+          obj['run_list'].append('recipe[cb_lot_metricbeat::metricbeat-logstash-xpack]')
           jsonkeys = {"ClusterName": "${AWS::StackName}","ElasticPassword": "${ElasticPassword}","LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "LogstashVersion": "${LogstashVersion}", "ElasticVersion": "${ElasticVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
           obj.update(jsonkeys)
           with open('/etc/chef/chefOverrides.json', 'w+') as f:
@@ -859,6 +903,17 @@ Resources:
           Value: !Ref ChefEnvironment
         - Key: "CF-Stack"
           Value: !Ref 'AWS::StackName'
+  LogstashIAMListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashIAMTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5056
+      Protocol: TCP
   LogstashAsgardListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -1340,6 +1395,164 @@ Resources:
           Value: "LAPS"
         - Key: "Billing"
           Value: "OPEX"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashIAMTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-iam-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5056
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "Billing"
+          Value: "OPEX"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  ElasticInternalLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupName: !Sub
+        - ${CFStackName}-Elastic-ELB
+        - { CFStackName: !Ref 'AWS::StackName' }
+      GroupDescription: Allow Filebeat monitoring to access internal ELB
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 10.0.0.0/8
+      - IpProtocol: tcp
+        FromPort: '9201'
+        ToPort: '9201'
+        CidrIp: 10.0.0.0/8
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-Elastic-alb-sg
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  ElasticListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Certificates:
+      - CertificateArn: "arn:aws:acm:ap-southeast-2:194141084398:certificate/853438fc-ac10-4c00-9c52-9e3993299a46"
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: 
+          Ref: ElasticTargetGroup
+      LoadBalancerArn:
+        Ref: ElasticApplicationLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+  ElasticApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub
+        - ${CFStackName}-Elastic-alb
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Scheme: internal
+      Subnets: !Ref VpcSubnets
+      SecurityGroups:
+        - Ref: ElasticInternalLoadBalancerSecurityGroup
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-elastic-alb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  ElasticTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 15
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTPS
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: '200,302,401'
+      Name: !Sub
+        - ${CFStackName}-ela-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 9201
+      Protocol: HTTPS
+      TargetType: instance
+      VpcId: !Ref VpcId
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+        - Key: slow_start.duration_seconds
+          Value: 30
+        - Key: stickiness.enabled
+          Value: true
+        - Key: stickiness.lb_cookie.duration_seconds
+          Value: 28800
+        - Key: stickiness.type
+          Value: lb_cookie
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-elastic-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
         - Key: "CostCentre"
           Value: "005635"
         - Key: "Schedule"
