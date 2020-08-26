@@ -23,6 +23,7 @@ Metadata:
           - LogstashVersion
           - LogstashInstanceType
           - ElasticElbDns
+          - KibanaElbDns
       - Label:
           default: Elastic Stack internal users initial passwords
         Parameters:
@@ -107,6 +108,12 @@ Parameters:
     Default: "elastic-752-uat-lott.tattsnonprod.com"
     AllowedValues:
     - elastic-752-uat-lott.tattsnonprod.com
+  KibanaElbDns:
+    Description: DNS for elastic load balancer
+    Type: String
+    Default: "kibana-752-uat-lott.tattsnonprod.com"
+    AllowedValues:
+    - kibana-752-uat-lott.tattsnonprod.com
   ElasticPassword:
     Description: Elastic main admin password
     Type: String
@@ -549,7 +556,7 @@ Resources:
           obj['run_list'].append('recipe[cb_lot_kibana_objects::all_objects]')
           obj['run_list'].append('recipe[cb_lot_metricbeat::metricbeat-elastic-xpack]')
           obj['run_list'].append('recipe[cb_lot_metricbeat::metricbeat-kibana-xpack]')
-          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
+          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "ElasticCaPwd": "${ElasticCaPwd}", "KibanaElbDns": "${KibanaElbDns}"}
           obj.update(jsonkeys)
           with open('/etc/chef/chefOverrides.json', 'w+') as f:
             f.write(json.dumps(obj,indent=4))
@@ -605,9 +612,9 @@ Resources:
   LogstashAutoscalingGroup:
     UpdatePolicy: 
       AutoScalingRollingUpdate: 
-        MinInstancesInService: "1"
+        MinInstancesInService: "2"
         MaxBatchSize: "1"
-        PauseTime: "PT5M"
+        PauseTime: "PT10M"
         SuspendProcesses:
           - HealthCheck
           - ReplaceUnhealthy
@@ -640,6 +647,10 @@ Resources:
         - Ref: LogstashCONTargetGroup
         - Ref: LogstashFUSETargetGroup
         - Ref: LogstashIAMTargetGroup
+        - Ref: LogstashTALTargetGroup
+        - Ref: LogstashTISMTargetGroup
+        - Ref: LogstashLTAWTargetGroup
+        - Ref: LogstashLTAWMBTargetGroup
       TerminationPolicies:
         - NewestInstance
       Tags: 
@@ -903,6 +914,17 @@ Resources:
           Value: !Ref ChefEnvironment
         - Key: "CF-Stack"
           Value: !Ref 'AWS::StackName'
+  LogstashTALListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashTALTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5041
+      Protocol: TCP
   LogstashIAMListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -1023,6 +1045,39 @@ Resources:
       LoadBalancerArn:
         Ref: LogstashNetworkLoadBalancer
       Port: 5044
+      Protocol: TCP
+  LogstashTISMListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashTISMTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5045
+      Protocol: TCP
+  LogstashLTAWListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashLTAWTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 5057
+      Protocol: TCP
+  LogstashLTAWMBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: LogstashLTAWMBTargetGroup
+      LoadBalancerArn:
+        Ref: LogstashNetworkLoadBalancer
+      Port: 6040
       Protocol: TCP
   LogstashNetworkLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -1415,6 +1470,146 @@ Resources:
         - ${CFStackName}-log-iam-tg
         - { CFStackName: !Ref 'AWS::StackName' }
       Port: 5056
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "Billing"
+          Value: "OPEX"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashTALTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-tal-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5041
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "Billing"
+          Value: "OPEX"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashTISMTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-tism-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5045
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "Billing"
+          Value: "OPEX"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashLTAWTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-log-ltaw-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 5057
+      Protocol: TCP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      Tags:
+        -
+          Key: "Name"
+          Value: !Sub
+            - ${CFStackName}-kibana-lb
+            - { CFStackName: !Ref 'AWS::StackName' }
+        - Key: "Service"
+          Value: "Lotteries"
+        - Key: "OwnerDescription"
+          Value: "LAPS"
+        - Key: "Billing"
+          Value: "OPEX"
+        - Key: "CostCentre"
+          Value: "005635"
+        - Key: "Schedule"
+          Value: "24x7"
+        - Key: "Environment"
+          Value: !Ref ChefEnvironment
+        - Key: "CF-Stack"
+          Value: !Ref 'AWS::StackName'
+  LogstashLTAWMBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Name: !Sub
+        - ${CFStackName}-mb-ltaw-tg
+        - { CFStackName: !Ref 'AWS::StackName' }
+      Port: 6040
       Protocol: TCP
       TargetType: instance
       VpcId: !Ref VpcId

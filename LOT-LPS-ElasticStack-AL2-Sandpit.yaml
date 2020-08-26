@@ -21,13 +21,13 @@ Metadata:
           - KibanaVersion
           - LogstashVersion
           - FilebeatVersion
-          - MetricbeatVersion
           - SandpitInstanceType
           - SandpitSubnetId
           - LogstashPipeline
           - FilebeatConfig
-          - MetricbeatConfig
           - KibanaConfig
+          - MetricbeatConfig
+          - ElasticElbDns
       - Label:
           default: Elastic Stack storage
         Parameters:
@@ -126,18 +126,6 @@ Parameters:
       - 7.5.2
     Type: String
     Default: 6.8.0
-  MetricbeatVersion:
-    Description: Metricbeat Version
-    AllowedValues:
-      - 6.5.3
-      - 6.5.4
-      - 6.6.2
-      - 6.8.0
-      - 7.1.1
-      - 7.4.2
-      - 7.5.2
-    Type: String
-    Default: 7.5.2
   SandpitInstanceType:
     Description: EC2 instance type
     Type: String
@@ -165,7 +153,6 @@ Parameters:
     Type: String
     Default: "example"
     AllowedValues:
-    - thelottapi
     - example
     - all_pipelines
   FilebeatConfig:
@@ -173,15 +160,6 @@ Parameters:
     Type: String
     Default: "example"
     AllowedValues:
-    - thelottapi
-    - example
-    - test
-  MetricbeatConfig:
-    Description: Metricbeat var
-    Type: String
-    Default: "example"
-    AllowedValues:
-    - thelottapi
     - example
     - test
   KibanaConfig:
@@ -189,9 +167,25 @@ Parameters:
     Type: String
     Default: "all_objects"
     AllowedValues:
-    - thelottapi
     - example
     - all_objects
+  MetricbeatConfig:
+    Description: Metricbeat recipe
+    Type: String
+    Default: "metricbeat-elastic-sandpit"
+    AllowedValues:
+    - metricbeat-elastic-sandpit
+  ElasticElbDns:
+    Description: DNS for elastic load balancer
+    Type: String
+    Default: "localhost"
+    AllowedValues:
+    - localhost
+    - elastic-lott-sandpit-dragan.tattsnonprod.com
+    - elastic-lott-sandpit-peter.tattsnonprod.com
+    - elastic-lott-sandpit-evan.tattsnonprod.com
+    - elastic-lott-sandpit-alastair.tattsnonprod.com
+    - elastic-lott-sandpit-brodie.tattsnonprod.com
   ElasticPassword:
     Description: Elastic main admin password
     Type: String
@@ -376,6 +370,13 @@ Resources:
     Properties: 
       BlockDeviceMappings:
         -
+          DeviceName: /dev/xvda
+          Ebs: 
+            VolumeType: gp2
+            Encrypted: True
+            VolumeSize: 8
+            DeleteOnTermination: True
+        -
           DeviceName: /dev/xvdb
           Ebs: 
             VolumeType: gp2
@@ -441,10 +442,10 @@ Resources:
           obj['run_list'].append('role[lotteries_aws_es7_sandpit]')
           obj['run_list'].append('recipe[cb_lot_logstash_pipelines::${LogstashPipeline}]')
           obj['run_list'].append('recipe[cb_lot_filebeat::${FilebeatConfig}]')
-          obj['run_list'].append('recipe[cb_lot_metricbeat::${MetricbeatConfig}]')
           obj['run_list'].append('recipe[cb_lot_aws_icinga2::client]')
           obj['run_list'].append('recipe[cb_lot_kibana_objects::${KibanaConfig}]')
-          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "LogstashVersion": "${LogstashVersion}", "FilebeatVersion": "${FilebeatVersion}", "MetricbeatVersion": "${MetricbeatVersion}", "ElasticCaPwd": "${ElasticCaPwd}"}
+          obj['run_list'].append('recipe[cb_lot_metricbeat::${MetricbeatConfig}]')
+          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "LogstashVersion": "${LogstashVersion}", "FilebeatVersion": "${FilebeatVersion}", "ElasticCaPwd": "${ElasticCaPwd}", "ElasticElbDns": "${ElasticElbDns}"}
           obj.update(jsonkeys)
           with open('/etc/chef/chefOverrides.json', 'w+') as f:
             f.write(json.dumps(obj,indent=4))
@@ -674,6 +675,10 @@ Resources:
         FromPort: '443'
         ToPort: '443'
         CidrIp: 10.0.0.0/8
+      - IpProtocol: tcp
+        FromPort: '9201'
+        ToPort: '9201'
+        CidrIp: 10.0.0.0/8
       Tags:
         -
           Key: "Name"
@@ -839,16 +844,16 @@ Resources:
         Ref: LogstashNetworkLoadBalancer
       Port: 5040
       Protocol: TCP
-  LogstashMETListener:
+  LogstashMBEATFSListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
       - Type: forward
         TargetGroupArn:
-          Ref: LogstashMETTargetGroup
+          Ref: LogstashMBEATFSTargetGroup
       LoadBalancerArn:
         Ref: LogstashNetworkLoadBalancer
-      Port: 6040
+      Port: 6041
       Protocol: TCP
   LogstashNetworkLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -1055,7 +1060,7 @@ Resources:
           Value: !Ref ChefEnvironment
         - Key: "CF-Stack"
           Value: !Ref 'AWS::StackName'
-  LogstashMETTargetGroup:
+  LogstashMBEATFSTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       HealthCheckIntervalSeconds: 30
@@ -1064,9 +1069,9 @@ Resources:
       HealthyThresholdCount: 3
       UnhealthyThresholdCount: 3
       Name: !Sub
-        - ${CFStackName}-log-met-tg
+        - ${CFStackName}-log-mbeatfs-tg
         - { CFStackName: !Ref 'AWS::StackName' }
-      Port: 6040
+      Port: 6041
       Protocol: TCP
       TargetType: instance
       Targets: 
