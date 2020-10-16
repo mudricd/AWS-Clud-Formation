@@ -28,6 +28,7 @@ Metadata:
           - KibanaConfig
           - MetricbeatConfig
           - ElasticElbDns
+          - SandpitRestore
       - Label:
           default: Elastic Stack storage
         Parameters:
@@ -69,6 +70,7 @@ Parameters:
     Description: Name of Chef Environment
     AllowedValues:
       - AWS-Sandpit
+      - AWS-NonProduction
     Type: String
     Default: AWS-Sandpit
   Shutdown:
@@ -154,6 +156,7 @@ Parameters:
     Default: "example"
     AllowedValues:
     - example
+    - IAM
     - all_pipelines
   FilebeatConfig:
     Description: Filebeat var
@@ -224,6 +227,13 @@ Parameters:
     Description: The ARN of the aws account 
     Type: String
     Default: "arn:aws:iam::034742451100:root"
+  SandpitRestore:
+    Description: Sandpit index restore
+    Type: String
+    Default: "true"
+    AllowedValues:
+    - true
+    - false
 
 Resources:
   elasticsearchSG:
@@ -445,7 +455,7 @@ Resources:
           obj['run_list'].append('recipe[cb_lot_aws_icinga2::client]')
           obj['run_list'].append('recipe[cb_lot_kibana_objects::${KibanaConfig}]')
           obj['run_list'].append('recipe[cb_lot_metricbeat::${MetricbeatConfig}]')
-          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "LogstashVersion": "${LogstashVersion}", "FilebeatVersion": "${FilebeatVersion}", "ElasticCaPwd": "${ElasticCaPwd}", "ElasticElbDns": "${ElasticElbDns}"}
+          jsonkeys = {"ClusterName": "${AWS::StackName}", "KibanaPassword": "${KibanaPassword}", "ElasticPassword": "${ElasticPassword}", "LogstashPassword": "${LogstashPassword}", "SslPfxLink": "${SslPfxLink}", "SslPfxPw": "${SslPfxPw}", "KibanaVersion": "${KibanaVersion}", "ElasticVersion": "${ElasticVersion}", "LogstashVersion": "${LogstashVersion}", "FilebeatVersion": "${FilebeatVersion}", "ElasticCaPwd": "${ElasticCaPwd}", "ElasticElbDns": "${ElasticElbDns}", "SandpitRestore": "${SandpitRestore}", "SandpitIndicesRestore": "${LogstashPipeline}"}
           obj.update(jsonkeys)
           with open('/etc/chef/chefOverrides.json', 'w+') as f:
             f.write(json.dumps(obj,indent=4))
@@ -675,10 +685,6 @@ Resources:
         FromPort: '443'
         ToPort: '443'
         CidrIp: 10.0.0.0/8
-      - IpProtocol: tcp
-        FromPort: '9201'
-        ToPort: '9201'
-        CidrIp: 10.0.0.0/8
       Tags:
         -
           Key: "Name"
@@ -843,17 +849,6 @@ Resources:
       LoadBalancerArn:
         Ref: LogstashNetworkLoadBalancer
       Port: 5040
-      Protocol: TCP
-  LogstashMBEATFSListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-      - Type: forward
-        TargetGroupArn:
-          Ref: LogstashMBEATFSTargetGroup
-      LoadBalancerArn:
-        Ref: LogstashNetworkLoadBalancer
-      Port: 6041
       Protocol: TCP
   LogstashNetworkLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -1037,41 +1032,6 @@ Resources:
         - ${CFStackName}-log-con-tg
         - { CFStackName: !Ref 'AWS::StackName' }
       Port: 5040
-      Protocol: TCP
-      TargetType: instance
-      Targets: 
-        - Id: !Ref SandpitSAEC2
-      VpcId: !Ref VpcId
-      Tags:
-        -
-          Key: "Name"
-          Value: !Sub
-            - ${CFStackName}-kibana-lb
-            - { CFStackName: !Ref 'AWS::StackName' }
-        - Key: "Service"
-          Value: "Lotteries"
-        - Key: "OwnerDescription"
-          Value: "LAPS"
-        - Key: "CostCentre"
-          Value: "005635"
-        - Key: "Schedule"
-          Value: "24x7"
-        - Key: "Environment"
-          Value: !Ref ChefEnvironment
-        - Key: "CF-Stack"
-          Value: !Ref 'AWS::StackName'
-  LogstashMBEATFSTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      HealthCheckIntervalSeconds: 30
-      HealthCheckProtocol: TCP
-      HealthCheckTimeoutSeconds: 10
-      HealthyThresholdCount: 3
-      UnhealthyThresholdCount: 3
-      Name: !Sub
-        - ${CFStackName}-log-mbeatfs-tg
-        - { CFStackName: !Ref 'AWS::StackName' }
-      Port: 6041
       Protocol: TCP
       TargetType: instance
       Targets: 
